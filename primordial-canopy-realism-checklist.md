@@ -12,6 +12,7 @@
 - [x] Add local forest-floor diffuse, normal, and roughness maps.
 - [x] Archive candidate wolf and squirrel GLBs without showing low-poly wildlife in scene.
 - [x] Remove low-poly/procedural dinosaurs and other plastic-looking wildlife from visible scene.
+- [x] Keep animal visuals disabled until suitable non-plastic licensed models are available.
 - [x] Add night sky stars and moon lighting.
 - [x] Extend exploration bounds and populate extended world area.
 - [x] Darken and reshape river/waterfall shaders for night-water response.
@@ -23,6 +24,9 @@
 - [x] Add breathing inhale/exhale pulses tied to fatigue and fear.
 - [x] Remove synthetic tonal ambient calls that sounded like beeps.
 - [x] Add rain streaks, rain-triggered ripples, and shallow puddle patches.
+- [x] Add dense wild-forest props: webs, lianas, broken logs, shallow ponds, fallen leaves, and occasional fruit.
+- [x] Make fallen leaves react to player movement.
+- [x] Expand rain visibility with denser streaks and more rain impact ripples.
 - [x] Add hand up/down swing during walking and stronger stride motion during running.
 - [x] Add hand reach, finger curl, and plant rustle on object contact.
 - [x] Add loading overlay while GLB/PBR assets load.
@@ -31,7 +35,7 @@
 ## Still needed for true AAA/photogrammetry realism
 
 - [ ] Replace procedural first-person hands with a licensed high-resolution rigged hand GLB.
-- [ ] Replace procedural dinosaurs/cliffs/river with licensed sculpted and textured GLB assets.
+- [ ] Replace procedural cliffs/river with licensed sculpted and textured GLB assets.
 - [ ] Add HDRI/environment lighting and reflection probes.
 - [ ] Add contact-shadow or GTAO pass for roots, feet, plants, and puddles.
 - [ ] Add temporal anti-aliasing and subtle depth of field.

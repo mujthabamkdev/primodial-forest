@@ -2,7 +2,7 @@
 
 Interactive first-person rainforest experience built with Three.js.
 
-Current copy focuses on a dark, rainy, dense forest: PBR vegetation, night sky, moon lighting, terrain-aware movement, rain puddles, river/waterfall shaders, subtle breathing, wildlife audio, object contact, and expanded exploration bounds.
+Current copy focuses on a dark, rainy, densely packed wild forest: PBR vegetation, night sky, moon lighting, terrain-aware movement, visible rain, shallow ponds, spider webs, natural lianas, fallen logs, moving leaves, occasional fruit, river/waterfall shaders, subtle breathing, wildlife audio, object contact, and expanded exploration bounds.
 
 ## Run locally
 
@@ -41,6 +41,7 @@ http://127.0.0.1:4173/index.html
 - Terrain-height grounding and plant collision volumes
 - Deep blue night fog, stars, moon, and cool moonlight
 - Rain streaks, shallow puddles, and surface ripples
+- Spider webs between plants, natural lianas, broken wood, shallow ponds, fallen leaves, and sparse fruit
 - Darker river flow and waterfall foam/mist shaders
 - Physical skin material, knuckle volume, walk/run hand swing
 - Fear response, movement resistance, and subtle camera instability

@@ -452,6 +452,11 @@ const realVegetationActors = [];
 let proceduralVegetationGroup;
 let groundMaterial;
 let starField, moonMesh;
+let forestPropsGroup;
+const fallenLeafActors = [];
+const webMeshes = [];
+const pondMeshes = [];
+const fruitMeshes = [];
 let windMaterials = [];
 let rainSystem, sporeSystem, splashRipples = [], puddleMeshes = [], volumetricRays = [];
 let prehistoricAnimals = [], butterflies = [], dartFrogs = [];
@@ -717,6 +722,168 @@ function createNightSky() {
     scene.add(moonMesh);
 }
 
+function createForestProps() {
+    forestPropsGroup = new THREE.Group();
+    forestPropsGroup.name = 'Wild_Forest_Props';
+    scene.add(forestPropsGroup);
+
+    const barkMaterial = new THREE.MeshStandardMaterial({
+        map: textures.barkTex,
+        bumpMap: textures.barkTex,
+        bumpScale: 0.045,
+        roughness: 0.96,
+        color: 0x30251d
+    });
+    const ropeMaterial = new THREE.MeshStandardMaterial({
+        map: textures.barkTex,
+        bumpMap: textures.barkTex,
+        bumpScale: 0.018,
+        roughness: 0.98,
+        color: 0x493b28
+    });
+
+    // Fallen trunks and broken branches force narrow natural passages.
+    for (let i = 0; i < 78; i++) {
+        const angle = i * 2.17;
+        const x = Math.sin(angle) * (18 + (i % 17) * 9.2);
+        const z = 2 - (i % 102) * 4.8 - Math.cos(angle * 0.7) * 14;
+        const length = 1.8 + (i % 6) * 0.65;
+        const log = new THREE.Mesh(new THREE.CylinderGeometry(0.13 + (i % 3) * 0.04, 0.2 + (i % 4) * 0.05, length, 9), barkMaterial);
+        log.position.set(x, terrainHeightAt(x, z) + 0.2, z);
+        log.rotation.set(0.05 * Math.sin(angle), angle, Math.PI * 0.5 + 0.12 * Math.sin(i));
+        log.castShadow = true;
+        log.receiveShadow = true;
+        forestPropsGroup.add(log);
+    }
+
+    // Natural lianas/ropes hanging across the canopy.
+    for (let i = 0; i < 64; i++) {
+        const angle = i * 1.91;
+        const x = Math.sin(angle) * (16 + (i % 13) * 10.5);
+        const z = 4 - (i % 94) * 5.0;
+        const top = 11 + (i % 5) * 2.4;
+        const curve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(x, terrainHeightAt(x, z) + top, z),
+            new THREE.Vector3(x + Math.sin(angle) * 1.5, terrainHeightAt(x, z) + top * 0.62, z + 1.5),
+            new THREE.Vector3(x + Math.cos(angle) * 2.2, terrainHeightAt(x, z) + 1.1, z + 3.5)
+        ]);
+        const rope = new THREE.Mesh(new THREE.TubeGeometry(curve, 18, 0.035 + (i % 3) * 0.012, 6, false), ropeMaterial);
+        rope.castShadow = true;
+        forestPropsGroup.add(rope);
+    }
+
+    // Small rain-fed pools, never large enough to read as a flooded floor.
+    for (let i = 0; i < 24; i++) {
+        const angle = i * 2.53;
+        const x = Math.sin(angle) * (10 + (i % 12) * 12.5);
+        const z = 4 - (i % 82) * 6.1 - Math.cos(angle) * 13;
+        const material = new THREE.MeshPhysicalMaterial({
+            color: 0x163841,
+            roughness: 0.16,
+            metalness: 0.0,
+            clearcoat: 0.18,
+            transparent: true,
+            opacity: 0.5,
+            depthWrite: false
+        });
+        const pond = new THREE.Mesh(new THREE.CircleGeometry(1, 28), material);
+        pond.rotation.x = -Math.PI / 2;
+        pond.position.set(x, terrainHeightAt(x, z) + 0.025, z);
+        pond.scale.set(0.7 + (i % 5) * 0.22, 0.45 + (i % 4) * 0.18, 1);
+        pond.rotation.z = angle;
+        forestPropsGroup.add(pond);
+        pondMeshes.push({ mesh: pond, phase: angle, baseOpacity: material.opacity });
+    }
+
+    // Fallen leaves react to the player's airflow and foot movement.
+    const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x6a4b2e, roughness: 0.94, side: THREE.DoubleSide });
+    const leafGeo = new THREE.PlaneGeometry(0.16, 0.08, 1, 1);
+    for (let i = 0; i < 420; i++) {
+        const angle = i * 2.41;
+        const x = Math.sin(angle) * (7 + (i % 26) * 5.8);
+        const z = 5 - (i % 108) * 4.55 - Math.cos(angle * 0.5) * 10;
+        const leaf = new THREE.Mesh(leafGeo, leafMaterial);
+        leaf.position.set(x, terrainHeightAt(x, z) + 0.045, z);
+        leaf.rotation.set(-Math.PI / 2, angle, (i % 7) * 0.3);
+        leaf.scale.set(0.65 + (i % 5) * 0.12, 0.65 + (i % 3) * 0.16, 1);
+        forestPropsGroup.add(leaf);
+        fallenLeafActors.push({ mesh: leaf, baseY: leaf.position.y, velocityX: 0, velocityZ: 0, phase: angle });
+    }
+
+    // Spider webs between vegetation, revealed as player approaches.
+    const webMaterial = new THREE.LineBasicMaterial({ color: 0xb8c9c0, transparent: true, opacity: 0.34, depthWrite: false });
+    for (let i = 0; i < 58; i++) {
+        const angle = i * 2.07;
+        const x = Math.sin(angle) * (9 + (i % 18) * 8.4);
+        const z = 2 - (i % 92) * 5.4 - Math.cos(angle) * 9;
+        const width = 0.8 + (i % 4) * 0.24;
+        const height = 0.65 + (i % 5) * 0.18;
+        const vertices = [];
+        for (let r = 0; r < 7; r++) {
+            const theta = (r / 7) * Math.PI * 2;
+            vertices.push(0, height * 0.5, 0, Math.cos(theta) * width, Math.sin(theta) * height - height * 0.12, 0);
+        }
+        for (let ring = 1; ring < 3; ring++) {
+            const radius = ring / 3;
+            for (let r = 0; r < 7; r++) {
+                const theta = (r / 7) * Math.PI * 2;
+                const next = ((r + 1) % 7 / 7) * Math.PI * 2;
+                vertices.push(Math.cos(theta) * width * radius, Math.sin(theta) * height * radius, 0, Math.cos(next) * width * radius, Math.sin(next) * height * radius, 0);
+            }
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const web = new THREE.LineSegments(geometry, webMaterial.clone());
+        web.position.set(x, terrainHeightAt(x, z) + 1.4 + (i % 4) * 0.3, z);
+        web.rotation.y = angle;
+        web.userData.baseOpacity = web.material.opacity;
+        forestPropsGroup.add(web);
+        webMeshes.push(web);
+    }
+
+    // Fruit appears only on selected understory plants.
+    const fruitMaterials = [0x7f2f28, 0xb36a2b, 0x75833b].map((color) => new THREE.MeshStandardMaterial({ color, roughness: 0.68 }));
+    for (let i = 0; i < 54; i++) {
+        const angle = i * 2.71;
+        const x = Math.sin(angle) * (13 + (i % 15) * 8.0);
+        const z = -8 - (i % 78) * 5.8;
+        const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.075 + (i % 3) * 0.018, 10, 8), fruitMaterials[i % fruitMaterials.length]);
+        fruit.position.set(x, terrainHeightAt(x, z) + 1.1 + (i % 4) * 0.18, z);
+        forestPropsGroup.add(fruit);
+        fruitMeshes.push(fruit);
+    }
+}
+
+function updateForestProps(dt, elapsed) {
+    const moving = GAME_STATE.moveVelocity > 1.0;
+    const forward = new THREE.Vector3(-Math.sin(GAME_STATE.cameraYaw), 0, -Math.cos(GAME_STATE.cameraYaw));
+    fallenLeafActors.forEach((leaf) => {
+        const dx = leaf.mesh.position.x - camera.position.x;
+        const dz = leaf.mesh.position.z - camera.position.z;
+        const distance = Math.hypot(dx, dz);
+        if (moving && distance < 3.8) {
+            const falloff = 1 - distance / 3.8;
+            leaf.velocityX += forward.x * 0.9 * falloff * dt;
+            leaf.velocityZ += forward.z * 0.9 * falloff * dt;
+        }
+        leaf.mesh.position.x += leaf.velocityX * dt;
+        leaf.mesh.position.z += leaf.velocityZ * dt;
+        leaf.velocityX *= Math.pow(0.04, dt);
+        leaf.velocityZ *= Math.pow(0.04, dt);
+        leaf.mesh.rotation.z += (leaf.velocityX + leaf.velocityZ) * dt * 2.4;
+        leaf.mesh.position.y = leaf.baseY + Math.sin(elapsed * 0.7 + leaf.phase) * 0.002;
+    });
+    pondMeshes.forEach((pond) => {
+        pond.mesh.material.opacity = pond.baseOpacity + Math.sin(elapsed * 0.6 + pond.phase) * 0.025;
+    });
+    webMeshes.forEach((web) => {
+        const distance = Math.hypot(web.position.x - camera.position.x, web.position.z - camera.position.z);
+        const visible = distance < 46;
+        web.visible = visible;
+        if (visible) web.material.opacity = web.userData.baseOpacity * (0.78 + Math.sin(elapsed * 1.1 + web.position.x) * 0.12);
+    });
+}
+
 function prepareRealAsset(root, targetHeight) {
     root.traverse((node) => {
         if (!node.isMesh) return;
@@ -843,20 +1010,20 @@ async function loadRealWorldAssets() {
     const treeTemplates = [tree, pachira].filter(Boolean).map((result) => result.scene);
     const undergrowthTemplates = [fern, shrub, anthurium].filter(Boolean).map((result) => result.scene);
     if (treeTemplates.length && undergrowthTemplates.length) {
-        for (let i = 0; i < 200; i++) {
+        for (let i = 0; i < 240; i++) {
             const side = i % 2 === 0 ? -1 : 1;
-            const lane = i % 20;
+            const lane = i % 28;
             const angle = i * 2.39996;
-            const x = side * (14 + lane * 8.2) + Math.sin(angle) * 5.5;
+            const x = side * (14 + lane * 9.0) + Math.sin(angle) * 5.5;
             const z = 8 - (i % 92) * 5.45 - Math.cos(angle * 0.7) * 10;
             if (Math.hypot(x, z) < 8 || (z < -188 && Math.abs(x) < 17)) continue;
             const template = treeTemplates[i % treeTemplates.length];
             addRealVegetation(template, { x, z }, 9.5 + (i % 6) * 2.2, angle * 1.7, 'TREE', 1.7 + (i % 3) * 0.5);
         }
-        for (let i = 0; i < 700; i++) {
+        for (let i = 0; i < 850; i++) {
             const angle = i * 2.618;
             const side = i % 2 === 0 ? -1 : 1;
-            const x = side * (5.8 + (i % 25) * 5.6) + Math.sin(angle) * 3.8;
+            const x = side * (5.8 + (i % 34) * 7.2) + Math.sin(angle) * 3.8;
             const z = 8 - (i % 112) * 4.55 - Math.cos(angle) * 10;
             if (Math.abs(x) < 4.2) continue;
             const template = undergrowthTemplates[i % undergrowthTemplates.length];
@@ -1681,7 +1848,7 @@ function initThreeScene() {
 
     // 1. Tropical Rainforest Downpour & Puddle Ripple Rings
     const rainGeo = new THREE.BufferGeometry();
-        const rainCount = 2400;
+    const rainCount = 3600;
     const rainPos = new Float32Array(rainCount * 6);
     for (let i = 0; i < rainCount * 6; i += 6) {
         const rx = (Math.random() - 0.5) * 55;
@@ -1693,7 +1860,7 @@ function initThreeScene() {
     rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
     rainSystem = new THREE.LineSegments(
         rainGeo,
-        new THREE.LineBasicMaterial({ color: 0xb8d2ce, transparent: true, opacity: 0.11 })
+        new THREE.LineBasicMaterial({ color: 0xb8d2ce, transparent: true, opacity: 0.24, depthWrite: false })
     );
     scene.add(rainSystem);
 
@@ -1730,6 +1897,7 @@ function initThreeScene() {
     proceduralVegetationGroup.name = 'Procedural_Vegetation_Fallback';
     scene.add(proceduralVegetationGroup);
     populateWANDERLVSTRainforest();
+    createForestProps();
     buildSanctuaryParadiseValley();
     populateWildlifeAndInsects();
     buildFirstPersonHands();
@@ -2097,6 +2265,7 @@ function animateLoop() {
         starField.rotation.y = elapsed * 0.0015;
         starField.material.opacity = 0.68 + Math.sin(elapsed * 0.22) * 0.06;
     }
+    if (forestPropsGroup && camera) updateForestProps(dt, elapsed);
 
     // Update Tropical Rain & Puddle Splash Ripples
     if (rainSystem) {
@@ -2111,7 +2280,7 @@ function animateLoop() {
                 rPos[i] = nx; rPos[i+1] = 24.0; rPos[i+2] = nz;
                 rPos[i+3] = nx - 0.04; rPos[i+4] = 23.15; rPos[i+5] = nz;
 
-                if (GAME_STATE.rainIntensity > 0.2 && Math.random() < 0.03) {
+                if (GAME_STATE.rainIntensity > 0.2 && Math.random() < 0.075) {
                     spawnFootstepRipple(nx, nz);
                 }
             }
