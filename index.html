@@ -6,12 +6,6 @@
     <title>Primordial Canopy - Photorealistic Film VFX Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
@@ -484,10 +478,9 @@ const audioWildlife = [
     { type: 'squirrel', position: new THREE.Vector3(46, 1.0, -252), radius: 56, cooldown: 0 }
 ];
 
-let scene, camera, renderer, composer, clock;
+let scene, camera, renderer, clock;
 let handsGroup, leftHandGroup, rightHandGroup, leftFingers = [], rightFingers = [];
 let sunLight, hemiLight, fillLight, lanternLight;
-let filmGradePass;
 let gltfLoader, realVegetationGroup, realWildlifeGroup;
 let realVegetationReady = false;
 let vegetationStreaming = null;
@@ -501,7 +494,6 @@ let forestPropsGroup;
 const fallenLeafActors = [];
 const webMeshes = [];
 const pondMeshes = [];
-const fruitMeshes = [];
 let windMaterials = [];
 let rainSystem, sporeSystem, splashRipples = [], puddleMeshes = [], volumetricRays = [];
 let prehistoricAnimals = [], butterflies = [], dartFrogs = [];
@@ -509,6 +501,7 @@ let riverShaderMat, waterfallShaderMat;
 let textures = {};
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.matchMedia('(max-width: 700px)').matches;
 let lastAtmosphereUiUpdate = 0;
+let animationFrameIndex = 0;
 
 function registerVegetationCollider(x, z, radius) {
     const cellX = Math.floor(x / VEGETATION_COLLISION_CELL);
@@ -607,7 +600,7 @@ function createBotanicalAndSurfaceTextures() {
     const bCtx = barkCanvas.getContext('2d');
     bCtx.fillStyle = '#1c1510';
     bCtx.fillRect(0, 0, 1024, 1024);
-    for (let i = 0; i < 18000; i++) {
+    for (let i = 0; i < (isMobileDevice ? 5000 : 12000); i++) {
         const rand = Math.random();
         if (rand > 0.68) {
             // Velvety green bryophyte moss patches
@@ -629,7 +622,7 @@ function createBotanicalAndSurfaceTextures() {
     const gCtx = groundCanvas.getContext('2d');
     gCtx.fillStyle = '#121810';
     gCtx.fillRect(0, 0, 1024, 1024);
-    for (let i = 0; i < 24000; i++) {
+    for (let i = 0; i < (isMobileDevice ? 7000 : 16000); i++) {
         const r = Math.random();
         if (r > 0.65) {
             // Mossy soil
@@ -678,7 +671,7 @@ function createBotanicalAndSurfaceTextures() {
     const sCtx = skinCanvas.getContext('2d');
     sCtx.fillStyle = '#808080';
     sCtx.fillRect(0, 0, 512, 512);
-    for (let i = 0; i < 16000; i++) {
+    for (let i = 0; i < (isMobileDevice ? 5000 : 11000); i++) {
         const v = 115 + Math.floor(Math.random() * 25);
         sCtx.fillStyle = `rgb(${v},${v},${v})`;
         sCtx.fillRect(Math.random() * 512, Math.random() * 512, 1.5, 1.5);
@@ -921,17 +914,6 @@ function createForestProps() {
         webMeshes.push(web);
     }
 
-    // Fruit appears only on selected understory plants.
-    const fruitMaterials = [0x7f2f28, 0xb36a2b, 0x75833b].map((color) => new THREE.MeshStandardMaterial({ color, roughness: 0.68 }));
-    for (let i = 0; i < 54; i++) {
-        const angle = i * 2.71;
-        const x = Math.sin(angle) * (13 + (i % 15) * 8.0);
-        const z = -8 - (i % 78) * 5.8;
-        const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.075 + (i % 3) * 0.018, 10, 8), fruitMaterials[i % fruitMaterials.length]);
-        fruit.position.set(x, terrainHeightAt(x, z) + 1.1 + (i % 4) * 0.18, z);
-        forestPropsGroup.add(fruit);
-        fruitMeshes.push(fruit);
-    }
 }
 
 function updateForestProps(dt, elapsed) {
@@ -1102,7 +1084,7 @@ function addInstancedVegetationSet(template, placements, name, parent = realVege
         const instanced = new THREE.InstancedMesh(node.geometry, node.material, placements.length);
         instanced.name = `${name}_mesh_${meshIndex}`;
         instanced.castShadow = false;
-        instanced.receiveShadow = !isMobileDevice;
+        instanced.receiveShadow = false;
         const plantMatrix = new THREE.Matrix4();
         const finalMatrix = new THREE.Matrix4();
         const quaternion = new THREE.Quaternion();
@@ -1162,10 +1144,10 @@ function initVegetationStreaming(treeTemplates, undergrowthTemplates) {
             registerVegetationCollider(placement.x, placement.z, placement.height > 11 ? 2.2 : 1.5);
         }
     }));
-    const mediumSets = buildWorldPlacements(undergrowthTemplates, isMobileDevice ? 22 : 18, 2, (x, z, index) => ({
+    const mediumSets = buildWorldPlacements(undergrowthTemplates, isMobileDevice ? 28 : 24, 2, (x, z, index) => ({
         x, z, height: 1.2 + (index % 4) * 0.24, rotation: vegetationHash(index, 2, 37) * Math.PI * 2
     }));
-    const smallSets = buildWorldPlacements(vegetationStreaming.smallTemplates, isMobileDevice ? 14 : 10.5, 3, (x, z, index) => ({
+    const smallSets = buildWorldPlacements(vegetationStreaming.smallTemplates, isMobileDevice ? 20 : 16, 3, (x, z, index) => ({
         x, z, height: 0.52 + (index % 5) * 0.11, rotation: vegetationHash(index, 3, 43) * Math.PI * 2
     }));
 
@@ -1260,7 +1242,7 @@ async function loadRealWorldAssets() {
         // Positions stay deterministic while GPU memory uses shared geometry plus instance buffers.
         initVegetationStreaming(treeTemplates, undergrowthTemplates);
         realVegetationReady = true;
-        if (proceduralVegetationGroup) proceduralVegetationGroup.visible = false;
+        disposeProceduralFallback();
     }
 
     GAME_STATE.assetsReady = true;
@@ -1272,6 +1254,23 @@ async function loadRealWorldAssets() {
         beginButton.disabled = false;
         beginButton.querySelector('span:last-child').textContent = 'START GAME';
     }
+}
+
+function disposeProceduralFallback() {
+    if (!proceduralVegetationGroup) return;
+    const geometries = new Set();
+    const materials = new Set();
+    proceduralVegetationGroup.traverse((node) => {
+        if (node.geometry) geometries.add(node.geometry);
+        if (node.material) {
+            (Array.isArray(node.material) ? node.material : [node.material]).forEach((material) => materials.add(material));
+        }
+    });
+    proceduralVegetationGroup.parent && proceduralVegetationGroup.parent.remove(proceduralVegetationGroup);
+    geometries.forEach((geometry) => geometry.dispose());
+    materials.forEach((material) => material.dispose());
+    windMaterials.length = 0;
+    proceduralVegetationGroup = null;
 }
 
 function createOrganicSplineMesh(controlPoints, radialSegments, tubularSegments, material, profileModFn) {
@@ -1549,7 +1548,7 @@ function populateWANDERLVSTRainforest() {
     canopyBoughGeo.rotateX(Math.PI / 2);
 
     // Spawn 420 Multi-Sized Rainforest Trees (Giant Emergent, Mid-Canopy, and Young Saplings)
-    for (let i = 0; i < 420; i++) {
+    for (let i = 0; i < (isMobileDevice ? 70 : 180); i++) {
         const x = (Math.random() - 0.5) * 280;
         const z = -Math.random() * 500 + 18;
         // Leave initial spawn clearing open
@@ -1846,8 +1845,8 @@ function buildSanctuaryParadiseValley() {
         side: THREE.DoubleSide
     }));
 
-    for (let f = 0; f < (isMobileDevice ? 100 : 220); f++) {
-        const inValley = f < 220;
+    for (let f = 0; f < (isMobileDevice ? 60 : 120); f++) {
+        const inValley = f < 120;
         const fx = inValley ? ((Math.random() - 0.5) * 95 + 4) : ((Math.random() - 0.5) * 200);
         const fz = inValley ? (-190 - Math.random() * 105) : (-Math.random() * 190);
         const blossom = new THREE.Group();
@@ -2012,13 +2011,13 @@ function initThreeScene() {
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 700);
     camera.position.set(0, 1.7, 8);
 
-    renderer = new THREE.WebGLRenderer({ antialias: !isMobileDevice, powerPreference: "high-performance" });
+    renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileDevice ? 1.0 : 1.5));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileDevice ? 1.0 : 1.15));
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.74;
-    renderer.shadowMap.enabled = !isMobileDevice;
+    renderer.shadowMap.enabled = false;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     document.getElementById('canvas-container').appendChild(renderer.domElement);
@@ -2030,9 +2029,9 @@ function initThreeScene() {
 
     sunLight = new THREE.DirectionalLight(0x91afd0, 0.78);
     sunLight.position.set(45, 75, -60);
-    sunLight.castShadow = !isMobileDevice;
-    sunLight.shadow.mapSize.width = isMobileDevice ? 512 : 1024;
-    sunLight.shadow.mapSize.height = isMobileDevice ? 512 : 1024;
+    sunLight.castShadow = false;
+    sunLight.shadow.mapSize.width = 256;
+    sunLight.shadow.mapSize.height = 256;
     sunLight.shadow.camera.near = 1;
     sunLight.shadow.camera.far = 260;
     const d = 90;
@@ -2131,48 +2130,6 @@ function initThreeScene() {
     populateWildlifeAndInsects();
     buildFirstPersonHands();
     loadRealWorldAssets();
-
-    // Crisp Post-Processing Pipeline (Subtle Sunbeam Bloom ONLY — No Bokeh Blur!)
-    composer = new THREE.EffectComposer(renderer);
-    composer.addPass(new THREE.RenderPass(scene, camera));
-    const bloomPass = new THREE.UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        isMobileDevice ? 0.035 : 0.08,
-        isMobileDevice ? 0.12 : 0.22,
-        0.96
-    );
-    if (!isMobileDevice) composer.addPass(bloomPass);
-
-    filmGradePass = new THREE.ShaderPass({
-        uniforms: {
-            tDiffuse: { value: null },
-            uTime: { value: 0 }
-        },
-        vertexShader: `
-            varying vec2 vUv;
-            void main() {
-                vUv = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-        `,
-        fragmentShader: `
-            uniform sampler2D tDiffuse;
-            uniform float uTime;
-            varying vec2 vUv;
-            void main() {
-                vec3 color = texture2D(tDiffuse, vUv).rgb;
-                float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
-                color = mix(vec3(luminance), color, 0.88);
-                color = mix(color, color * vec3(1.04, 1.0, 0.96), smoothstep(0.25, 0.95, luminance) * 0.45);
-                float distanceFromCenter = distance(vUv, vec2(0.5));
-                color *= 1.0 - smoothstep(0.34, 0.78, distanceFromCenter) * 0.18;
-                float grain = fract(sin(dot(vUv * vec2(127.1, 311.7) + uTime, vec2(269.5, 183.3))) * 43758.5453) - 0.5;
-                color += grain * 0.009;
-                gl_FragColor = vec4(max(color, 0.0), 1.0);
-            }
-        `
-    });
-    if (!isMobileDevice) composer.addPass(filmGradePass);
 
     window.addEventListener('resize', onWindowResize);
 }
@@ -2522,22 +2479,24 @@ function animateLoop() {
     requestAnimationFrame(animateLoop);
     const dt = Math.min(clock.getDelta(), 0.1);
     const elapsed = clock.getElapsedTime();
+    animationFrameIndex++;
 
     // Update wind-animated foliage & water shaders
-    for (let i = 0; i < windMaterials.length; i++) {
-        windMaterials[i].uniforms.uTime.value = elapsed;
+    if ((animationFrameIndex & 1) === 0) {
+        for (let i = 0; i < windMaterials.length; i++) {
+            windMaterials[i].uniforms.uTime.value = elapsed;
+        }
+        for (let i = 0; i < volumetricRays.length; i++) {
+            volumetricRays[i].material.uniforms.uTime.value = elapsed;
+        }
     }
-    for (let i = 0; i < volumetricRays.length; i++) {
-        volumetricRays[i].material.uniforms.uTime.value = elapsed;
-    }
-    if (filmGradePass) filmGradePass.uniforms.uTime.value = elapsed;
     if (riverShaderMat) riverShaderMat.uniforms.uTime.value = elapsed;
     if (waterfallShaderMat) waterfallShaderMat.uniforms.uTime.value = elapsed;
     if (starField) {
         starField.rotation.y = elapsed * 0.0015;
         starField.material.opacity = 0.68 + Math.sin(elapsed * 0.22) * 0.06;
     }
-    if (forestPropsGroup && camera) updateForestProps(dt, elapsed);
+    if (forestPropsGroup && camera && (animationFrameIndex & 1) === 0) updateForestProps(dt * 2, elapsed);
 
     // Update Tropical Rain & Puddle Splash Ripples
     if (rainSystem) {
@@ -2578,7 +2537,7 @@ function animateLoop() {
     });
 
     // Update Shimmering Spores
-    if (sporeSystem) {
+    if (sporeSystem && (animationFrameIndex & 3) === 0) {
         const sPos = sporeSystem.geometry.attributes.position.array;
         for (let i = 1; i < sPos.length; i += 3) {
             sPos[i] += Math.sin(elapsed * 1.2 + i) * 0.005;
@@ -2652,7 +2611,7 @@ function animateLoop() {
     if (!GAME_STATE.started) {
         camera.position.x = Math.sin(elapsed * 0.25) * 0.6;
         camera.lookAt(0, 1.8, -18);
-        composer.render();
+        renderer.render(scene, camera);
         return;
     }
 
@@ -2841,14 +2800,13 @@ function animateLoop() {
 
     if (GAME_STATE.started) updateFearAtmosphere(dt, elapsed);
 
-    composer.render();
+    renderer.render(scene, camera);
 }
 
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    if (composer) composer.setSize(window.innerWidth, window.innerHeight);
 }
 
 window.onload = function () {
