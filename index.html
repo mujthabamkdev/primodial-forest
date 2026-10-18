@@ -2720,13 +2720,15 @@ function animateLoop() {
             GAME_STATE.checkpointPos.z = camera.position.z;
         }
 
-        // Check Unmarked Natural Hazard Zones
-        if (GAME_STATE.phase === 'WALKING') {
-            for (let h of HAZARD_ZONES) {
-                const dist = Math.hypot(camera.position.x - h.x, camera.position.z - h.z);
-                if (dist < h.radius) {
-                    triggerHazardOutcome(h);
-                    break;
+            // Check Unmarked Natural Hazard Zones
+            if (GAME_STATE.phase === 'WALKING') {
+                for (let h of HAZARD_ZONES) {
+                    const dist = Math.hypot(camera.position.x - h.x, camera.position.z - h.z);
+                    const attackRadius = h.outcomeType === 'PREDATOR_AMBUSH' ? h.radius * 0.5 : h.radius;
+                    if (dist < attackRadius) {
+                        triggerHazardOutcome(h);
+                        break;
+                    }
                 }
             }
 
@@ -2751,7 +2753,6 @@ function animateLoop() {
                 hemiLight.intensity = 0.32;
                 audioEngine.playNightJungleCall('close');
             }
-        }
 
         camera.rotation.order = 'YXZ';
         camera.rotation.y = GAME_STATE.cameraYaw;
