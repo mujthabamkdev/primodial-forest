@@ -37,6 +37,7 @@ http://127.0.0.1:4173/index.html
 ## Visual systems
 
 - Dense imported canopy and understory placement across expanded world bounds
+- Instanced 20x density layer for larger plants, medium plants, and rooted ground cover
 - Distance culling for imported vegetation
 - Terrain-height grounding and plant collision volumes
 - Deep blue night fog, stars, moon, and cool moonlight

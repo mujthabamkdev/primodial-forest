@@ -25,6 +25,7 @@
 - [x] Remove synthetic tonal ambient calls that sounded like beeps.
 - [x] Add rain streaks, rain-triggered ripples, and shallow puddle patches.
 - [x] Add dense wild-forest props: webs, lianas, broken logs, shallow ponds, fallen leaves, and occasional fruit.
+- [x] Add 20x instanced plant-density layer with larger plants above rooted ground cover.
 - [x] Make fallen leaves react to player movement.
 - [x] Expand rain visibility with denser streaks and more rain impact ripples.
 - [x] Add hand up/down swing during walking and stronger stride motion during running.
