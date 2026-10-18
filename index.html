@@ -812,7 +812,7 @@ function createForestProps() {
 
     // Spider webs between vegetation, revealed as player approaches.
     const webMaterial = new THREE.LineBasicMaterial({ color: 0xb8c9c0, transparent: true, opacity: 0.34, depthWrite: false });
-    for (let i = 0; i < 58; i++) {
+    for (let i = 0; i < 0; i++) {
         const angle = i * 2.07;
         const x = Math.sin(angle) * (9 + (i % 18) * 8.4);
         const z = 2 - (i % 92) * 5.4 - Math.cos(angle) * 9;
@@ -878,10 +878,53 @@ function updateForestProps(dt, elapsed) {
     });
     webMeshes.forEach((web) => {
         const distance = Math.hypot(web.position.x - camera.position.x, web.position.z - camera.position.z);
-        const visible = distance < 46;
+        const visible = distance < 7.5;
         web.visible = visible;
         if (visible) web.material.opacity = web.userData.baseOpacity * (0.78 + Math.sin(elapsed * 1.1 + web.position.x) * 0.12);
     });
+}
+
+function createSpiderWebsBetweenPlants() {
+    const anchors = realVegetationActors.filter((actor) => actor.object && actor.object.userData.assetType).slice(0, 900);
+    const webMaterial = new THREE.LineBasicMaterial({ color: 0xc1d0c8, transparent: true, opacity: 0.3, depthWrite: false });
+    const maxWebs = Math.min(180, Math.floor(anchors.length / 4));
+    for (let i = 0; i < maxWebs; i++) {
+        const a = anchors[(i * 17) % anchors.length];
+        let b = null;
+        let bestDistance = Infinity;
+        for (let j = 1; j < 36; j++) {
+            const candidate = anchors[(i * 17 + j * 13) % anchors.length];
+            const distance = Math.hypot(candidate.x - a.x, candidate.z - a.z);
+            if (distance > 2.5 && distance < 11.5 && distance < bestDistance) {
+                b = candidate;
+                bestDistance = distance;
+            }
+        }
+        if (!b) continue;
+        const width = bestDistance;
+        const height = 0.52 + (i % 4) * 0.12;
+        const vertices = [];
+        for (let r = 0; r < 7; r++) {
+            const theta = (r / 7) * Math.PI * 2;
+            vertices.push(0, 0, 0, Math.cos(theta) * width * 0.5, Math.sin(theta) * height, 0);
+        }
+        for (let ring = 1; ring < 4; ring++) {
+            const radius = ring / 4;
+            for (let r = 0; r < 7; r++) {
+                const t1 = (r / 7) * Math.PI * 2;
+                const t2 = (((r + 1) % 7) / 7) * Math.PI * 2;
+                vertices.push(Math.cos(t1) * width * 0.5 * radius, Math.sin(t1) * height * radius, 0, Math.cos(t2) * width * 0.5 * radius, Math.sin(t2) * height * radius, 0);
+            }
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const web = new THREE.LineSegments(geometry, webMaterial.clone());
+        web.position.set((a.x + b.x) * 0.5, terrainHeightAt((a.x + b.x) * 0.5, (a.z + b.z) * 0.5) + 0.85 + (i % 3) * 0.2, (a.z + b.z) * 0.5);
+        web.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x);
+        web.userData.baseOpacity = web.material.opacity;
+        forestPropsGroup.add(web);
+        webMeshes.push(web);
+    }
 }
 
 function prepareRealAsset(root, targetHeight) {
@@ -915,7 +958,12 @@ function prepareRealAsset(root, targetHeight) {
 }
 
 function addRealVegetation(template, position, targetHeight, rotationY, type, radius) {
-    const instance = prepareRealAsset(template.clone(true), targetHeight);
+    if (!template.userData.forestPrepared) {
+        prepareRealAsset(template, 1);
+        template.userData.forestPrepared = true;
+    }
+    const instance = template.clone(true);
+    instance.scale.multiplyScalar(targetHeight);
     instance.position.x = position.x;
     instance.position.z = position.z;
     instance.position.y = terrainHeightAt(position.x, position.z);
@@ -923,7 +971,9 @@ function addRealVegetation(template, position, targetHeight, rotationY, type, ra
     instance.userData.assetType = type;
     realVegetationGroup.add(instance);
     realVegetationActors.push({ object: instance, x: position.x, z: position.z });
-    interactiveObjects.push({ object: instance, position: new THREE.Vector3(position.x, 0, position.z), radius, type, touchedAt: -10 });
+    if (type === 'TREE' || type === 'SHRUB') {
+        interactiveObjects.push({ object: instance, position: new THREE.Vector3(position.x, 0, position.z), radius, type, touchedAt: -10 });
+    }
     return instance;
 }
 
@@ -988,7 +1038,6 @@ async function loadRealWorldAssets() {
         groundMaterial.needsUpdate = true;
     }
 
-    const assetRoot = 'assets/models/polyhaven/';
     const progressBar = document.getElementById('asset-progress-bar');
     const setProgress = (value) => { if (progressBar) progressBar.style.width = `${value}%`; };
     setProgress(12);
@@ -1010,27 +1059,38 @@ async function loadRealWorldAssets() {
     const treeTemplates = [tree, pachira].filter(Boolean).map((result) => result.scene);
     const undergrowthTemplates = [fern, shrub, anthurium].filter(Boolean).map((result) => result.scene);
     if (treeTemplates.length && undergrowthTemplates.length) {
-        for (let i = 0; i < 240; i++) {
-            const side = i % 2 === 0 ? -1 : 1;
-            const lane = i % 28;
-            const angle = i * 2.39996;
-            const x = side * (14 + lane * 9.0) + Math.sin(angle) * 5.5;
-            const z = 8 - (i % 92) * 5.45 - Math.cos(angle * 0.7) * 10;
-            if (Math.hypot(x, z) < 8 || (z < -188 && Math.abs(x) < 17)) continue;
-            const template = treeTemplates[i % treeTemplates.length];
-            addRealVegetation(template, { x, z }, 9.5 + (i % 6) * 2.2, angle * 1.7, 'TREE', 1.7 + (i % 3) * 0.5);
+        const skyGap = (x, z) => Math.hypot(x - 96, z + 292) < 34;
+        const waterGap = (x, z) => z < -188 && z > -412 && x > -8 && x < 16;
+        const pathGap = (x, z) => Math.abs(x - Math.sin(z * 0.018) * 7.5) < 5.2;
+        let treeIndex = 0;
+        for (let z = 12; z >= -510; z -= 26) {
+            for (let x = -270; x <= 270; x += 26) {
+                const jitterX = Math.sin((x + 271) * 0.071 + z * 0.019) * 4.2;
+                const jitterZ = Math.cos((z + 511) * 0.063 + x * 0.023) * 4.2;
+                const px = x + jitterX;
+                const pz = z + jitterZ;
+                if (skyGap(px, pz) || waterGap(px, pz) || pathGap(px, pz)) continue;
+                const template = treeTemplates[treeIndex % treeTemplates.length];
+                addRealVegetation(template, { x: px, z: pz }, 10 + (treeIndex % 7) * 1.9, treeIndex * 1.71, 'TREE', 2.0 + (treeIndex % 3) * 0.45);
+                treeIndex++;
+            }
         }
-        for (let i = 0; i < 850; i++) {
-            const angle = i * 2.618;
-            const side = i % 2 === 0 ? -1 : 1;
-            const x = side * (5.8 + (i % 34) * 7.2) + Math.sin(angle) * 3.8;
-            const z = 8 - (i % 112) * 4.55 - Math.cos(angle) * 10;
-            if (Math.abs(x) < 4.2) continue;
-            const template = undergrowthTemplates[i % undergrowthTemplates.length];
-            const type = i % 3 === 0 ? 'FERN' : i % 3 === 1 ? 'SHRUB' : 'ANTHURIUM';
-            const height = type === 'FERN' ? 0.75 + (i % 5) * 0.22 : type === 'ANTHURIUM' ? 0.45 + (i % 4) * 0.18 : 1.4 + (i % 4) * 0.32;
-            addRealVegetation(template, { x, z }, height, angle, type, type === 'FERN' ? 0.55 : 0.82);
+        let plantIndex = 0;
+        for (let z = 12; z >= -510; z -= 13) {
+            for (let x = -270; x <= 270; x += 13) {
+                const jitterX = Math.sin((x + 271) * 0.11 + z * 0.033) * 2.4;
+                const jitterZ = Math.cos((z + 511) * 0.097 + x * 0.041) * 2.4;
+                const px = x + jitterX;
+                const pz = z + jitterZ;
+                if (skyGap(px, pz) || waterGap(px, pz) || pathGap(px, pz)) continue;
+                const template = undergrowthTemplates[plantIndex % undergrowthTemplates.length];
+                const type = plantIndex % 3 === 0 ? 'FERN' : plantIndex % 3 === 1 ? 'SHRUB' : 'ANTHURIUM';
+                const height = type === 'FERN' ? 0.72 + (plantIndex % 5) * 0.2 : type === 'ANTHURIUM' ? 0.42 + (plantIndex % 4) * 0.16 : 1.25 + (plantIndex % 4) * 0.28;
+                addRealVegetation(template, { x: px, z: pz }, height, plantIndex * 1.31, type, type === 'FERN' ? 0.58 : 0.84);
+                plantIndex++;
+            }
         }
+        createSpiderWebsBetweenPlants();
         realVegetationReady = true;
         if (proceduralVegetationGroup) proceduralVegetationGroup.visible = false;
     }
