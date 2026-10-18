@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Primordial Canopy - Photorealistic Film VFX Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #020604;
+            font-family: 'Inter', sans-serif;
+            color: #f1f5f9;
+            touch-action: none;
+        }
+        .cinematic-font {
+            font-family: 'Cinzel', serif;
+        }
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .vignette-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+            background: radial-gradient(circle at center, transparent 58%, rgba(1, 5, 3, 0.55) 85%, rgba(0, 0, 0, 0.88) 100%);
+            transition: box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .danger-pulse {
+            box-shadow: inset 0 0 180px rgba(185, 28, 28, 0.95) !important;
+        }
+        .totem-selector {
+            background: radial-gradient(circle at 50% 25%, rgba(14, 42, 30, 0.92), rgba(2, 8, 5, 0.98));
+            border: 1.5px solid rgba(52, 211, 153, 0.28);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), inset 0 0 30px rgba(16, 185, 129, 0.12);
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .totem-selector.active {
+            border-color: #34d399;
+            transform: scale(1.06) translateY(-4px);
+            box-shadow: 0 0 45px rgba(52, 211, 153, 0.45), inset 0 0 35px rgba(52, 211, 153, 0.25);
+        }
+        .touch-ripple {
+            position: absolute;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(167, 243, 208, 0.35);
+            background: radial-gradient(circle, rgba(52, 211, 153, 0.12) 0%, transparent 70%);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            z-index: 15;
+            transition: opacity 0.25s ease;
+        }
+        #run-toggle-btn {
+            position: absolute;
+            bottom: 1.75rem;
+            right: 1.75rem;
+            z-index: 20;
+            background: rgba(3, 28, 20, 0.78);
+            backdrop-filter: blur(8px);
+            border: 1.5px solid rgba(52, 211, 153, 0.45);
+            color: #6ee7b7;
+            padding: 0.75rem 1.4rem;
+            border-radius: 9999px;
+            font-family: 'Cinzel', serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.22em;
+            cursor: pointer;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.85);
+            transition: all 0.25s ease;
+        }
+        #run-toggle-btn.active {
+            background: rgba(16, 185, 129, 0.32);
+            color: #ffffff;
+            border-color: #34d399;
+            box-shadow: 0 0 28px rgba(52, 211, 153, 0.65);
+        }
+        .control-grid {
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:0.55rem 1.5rem;
+            width:min(34rem,92vw);
+            padding:1rem 1.25rem;
+            margin-bottom:1.5rem;
+            border:1px solid rgba(167,243,208,.18);
+            background:rgba(2,12,8,.58);
+            box-shadow:inset 0 0 30px rgba(16,185,129,.06), 0 18px 40px rgba(0,0,0,.55);
+        }
+        .control-grid span { color:rgba(209,250,229,.76); font-size:.68rem; letter-spacing:.16em; text-transform:uppercase; }
+        .asset-loader {
+            position:absolute; inset:0; z-index:45; display:flex; flex-direction:column; align-items:center; justify-content:center;
+            background:rgba(1,5,3,.82); backdrop-filter:blur(14px); pointer-events:auto; transition:opacity .6s ease;
+        }
+        .asset-loader.hidden { opacity:0; pointer-events:none; }
+        .asset-progress { width:min(22rem,70vw); height:4px; margin-top:1rem; background:rgba(167,243,208,.15); overflow:hidden; }
+        .asset-progress > i { display:block; width:8%; height:100%; background:#6ee7b7; box-shadow:0 0 18px rgba(110,231,183,.8); transition:width .35s ease; }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div id="vignette" class="vignette-overlay"></div>
+
+<!-- Invisible Touch Feedback Rings for Mobile -->
+<div id="left-touch-ring" class="touch-ripple opacity-0"></div>
+<div id="right-touch-ring" class="touch-ripple opacity-0"></div>
+
+<!-- Minimal Run Toggle Control -->
+<button id="run-toggle-btn" class="hidden">RUN: OFF</button>
+
+<!-- Minimal Console-Style Character Selection Modal -->
+<div id="start-modal" class="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 bg-black/80 backdrop-blur-xl transition-opacity duration-700">
+    <h1 class="cinematic-font text-3xl md:text-5xl font-extrabold text-emerald-100 tracking-[0.3em] mb-12 drop-shadow-2xl text-center">
+        PRIMORDIAL CANOPY
+    </h1>
+
+    <div class="flex items-center gap-6 md:gap-10 mb-12">
+        <button id="select-male" class="totem-selector active w-32 h-36 md:w-36 md:h-40 rounded-3xl flex flex-col items-center justify-center gap-3 cursor-pointer">
+            <svg class="w-12 h-12 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            <span class="cinematic-font text-xs tracking-[0.25em] text-emerald-100 font-bold uppercase">MALE</span>
+        </button>
+
+        <button id="select-female" class="totem-selector w-32 h-36 md:w-36 md:h-40 rounded-3xl flex flex-col items-center justify-center gap-3 cursor-pointer">
+            <svg class="w-12 h-12 text-emerald-300/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197"/>
+            </svg>
+            <span class="cinematic-font text-xs tracking-[0.25em] text-emerald-100 font-bold uppercase">FEMALE</span>
+        </button>
+    </div>
+
+    <div class="control-grid">
+        <span>W A S D / arrows · move</span><span>mouse / right touch · look</span>
+        <span>Shift / RUN · sprint</span><span>touch object · reach / rustle</span>
+    </div>
+
+    <button id="begin-btn" disabled class="group relative px-14 py-4 rounded-full bg-emerald-500/20 disabled:opacity-60 disabled:cursor-wait hover:bg-emerald-500/35 border border-emerald-400/60 transition-all duration-300 flex items-center gap-3 shadow-2xl cursor-pointer">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 group-hover:scale-125 transition"></span>
+        <span class="cinematic-font text-sm tracking-[0.3em] text-white font-bold uppercase">ENTER</span>
+    </button>
+</div>
+
+<div id="asset-loader" class="asset-loader">
+    <div class="cinematic-font text-emerald-100 text-sm tracking-[0.28em] uppercase">Loading forest assets</div>
+    <div class="text-emerald-200/60 text-[0.65rem] tracking-[0.18em] uppercase mt-2">PBR vegetation · night sky · rain surface</div>
+    <div class="asset-progress"><i id="asset-progress-bar"></i></div>
+</div>
+
+<!-- Tragic Fate Modal (Never shown on Winning Sanctuary Path) -->
+<div id="ending-modal" class="hidden absolute inset-0 z-50 flex flex-col items-center justify-center p-6 bg-black/92 backdrop-blur-2xl transition-opacity duration-1000">
+    <h2 id="ending-title" class="cinematic-font text-2xl md:text-4xl font-extrabold text-white tracking-[0.2em] text-center mb-3"></h2>
+    <p id="ending-desc" class="text-emerald-200/75 text-xs md:text-sm tracking-widest uppercase text-center max-w-md mb-10"></p>
+    <div class="flex gap-5">
+        <button id="retry-fork-btn" class="px-7 py-3.5 rounded-full bg-emerald-950/85 hover:bg-emerald-800/85 border border-emerald-400/45 text-emerald-100 cinematic-font text-xs tracking-[0.2em] uppercase transition cursor-pointer">
+            STEP BACK
+        </button>
+        <button id="restart-full-btn" class="px-7 py-3.5 rounded-full bg-emerald-500/25 hover:bg-emerald-500/45 border border-emerald-300/65 text-white cinematic-font text-xs tracking-[0.2em] uppercase transition cursor-pointer">
+            RESTART
+        </button>
+    </div>
+</div>
+
+<script>
+const GAME_STATE = {
+    started: false,
+    gender: 'male',
+    phase: 'WALKING', // WALKING | SANCTUARY_FREEROAM | ENDING_SEQUENCE | ENDED
+    sprint: false,
+    moveVelocity: 0,
+    fatigue: 0.0,
+    fear: 0.0,
+    isTrapped: false,
+    touchTarget: null,
+    touchPulse: 0,
+    assetsReady: false,
+    cameraYaw: 0,
+    cameraPitch: 0,
+    bobTimer: 0,
+    stepAccum: 0,
+    breathTimer: 1.5,
+    ambientTimer: 2.5,
+    surpriseTriggered: false,
+    endingTimer: 0,
+    currentOutcome: null,
+    rainIntensity: 0.85,
+    checkpointPos: { x: 0, z: -25 }
+};
+
+// 6 Terminal Zones along the deep jungle horizon (Z = -195 to -235)
+// Note: X around [-18 to +28] is the open Winning Sanctuary Valley; outer/specific zones house unmarked natural hazards
+const HAZARD_ZONES = [
+    { id: 0, x: -75, z: -155, radius: 14, outcomeType: "TRIBE_CAPTURE", title: "TAKEN BY THE WATCHERS", desc: "A silent poison blowdart strikes from the high canopy shadows" },
+    { id: 1, x: -38, z: -175, radius: 14, outcomeType: "PREDATOR_AMBUSH", title: "WOLF HOWL IN THE UNDERGROWTH", desc: "A close howl breaks through the rain and dense forest" },
+    { id: 2, x: -12, z: -135, radius: 11, outcomeType: "SPIKE_TRAP", title: "DEADFALL SINKHOLE", desc: "The rain-rotted root bridge collapses into a deep limestone chasm" },
+    { id: 3, x: 42,  z: -165, radius: 14, outcomeType: "TERROR_PACK", title: "PHORUSRHACOS PACK", desc: "Intercepted by a hunting pair of colossal prehistoric terror birds" },
+    { id: 4, x: 76,  z: -150, radius: 14, outcomeType: "QUICKSAND_MIRE", title: "BOTTOMLESS PEAT MIRE", desc: "Pulled beneath the rain-flooded prehistoric bog" }
+];
+
+class JungleAudioEngine {
+    constructor() {
+        this.initialized = false;
+        this.rainGain = null;
+    }
+
+    async init() {
+        if (this.initialized) return;
+        try {
+            await Tone.start();
+
+            this.wolfRecording = new Audio('assets/audio/wolf-howls.ogg');
+            this.wolfRecording.preload = 'auto';
+            this.squirrelRecording = new Audio('assets/audio/jungle-palm-squirrel-sound.wav');
+            this.squirrelRecording.preload = 'auto';
+
+            // Natural rainforest canopy rain + breeze
+            this.rainNoise = new Tone.Noise("pink").start();
+            this.rainFilter = new Tone.Filter({ type: "bandpass", frequency: 1050, Q: 0.7 });
+            this.rainGain = new Tone.Gain(0.055).toDestination();
+            this.rainNoise.connect(this.rainFilter);
+            this.rainFilter.connect(this.rainGain);
+
+            // Organic mud & leaf crunch footstep
+            this.stepSynth = new Tone.NoiseSynth({
+                noise: { type: "brown" },
+                envelope: { attack: 0.004, decay: 0.11, sustain: 0 }
+            }).toDestination();
+            this.stepSynth.volume.value = -25;
+
+            // Puddle water splash
+            this.splashSynth = new Tone.NoiseSynth({
+                noise: { type: "white" },
+                envelope: { attack: 0.006, decay: 0.09, sustain: 0 }
+            });
+            this.splashFilter = new Tone.Filter(1800, "bandpass").toDestination();
+            this.splashSynth.connect(this.splashFilter);
+            this.splashSynth.volume.value = -28;
+
+            // Explorer dynamic breathing (gender-tuned formant filter)
+            this.breathSynth = new Tone.NoiseSynth({
+                noise: { type: "pink" },
+                envelope: { attack: 0.34, decay: 0.68, sustain: 0.04, release: 0.48 }
+            });
+            this.breathFilter = new Tone.Filter({ type: "lowpass", frequency: 430, Q: 0.55 });
+            this.breathGain = new Tone.Gain(0.22).toDestination();
+            this.breathSynth.connect(this.breathFilter);
+            this.breathFilter.connect(this.breathGain);
+
+            // Dedicated animal cues: distant wolf howl and close squirrel chatter.
+            this.wolfSynth = new Tone.FMSynth({
+                harmonicity: 0.5,
+                modulationIndex: 3.2,
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.18, decay: 1.4, sustain: 0.15, release: 1.8 }
+            });
+            this.wolfFilter = new Tone.Filter(720, "lowpass").toDestination();
+            this.wolfDelay = new Tone.FeedbackDelay("8n", 0.22).toDestination();
+            this.wolfSynth.connect(this.wolfFilter);
+            this.wolfFilter.connect(this.wolfDelay);
+            this.wolfSynth.volume.value = -19;
+
+            this.squirrelSynth = new Tone.Synth({
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.008, decay: 0.08, sustain: 0.04, release: 0.08 }
+            });
+            this.squirrelFilter = new Tone.Filter(2400, "bandpass").toDestination();
+            this.squirrelSynth.connect(this.squirrelFilter);
+            this.squirrelSynth.volume.value = -26;
+
+            // Prehistoric animal vocalization & nocturnal bird/frog synth
+            this.creatureSynth = new Tone.FMSynth({
+                harmonicity: 1.35,
+                modulationIndex: 8,
+                envelope: { attack: 0.04, decay: 0.75, sustain: 0.25, release: 0.8 }
+            }).toDestination();
+
+            // Vocal gasp / scream synth
+            this.vocalSynth = new Tone.MonoSynth({
+                oscillator: { type: "sawtooth" },
+                filter: { Q: 3, type: "bandpass", rolloff: -24 },
+                envelope: { attack: 0.03, decay: 0.5, sustain: 0.2, release: 0.5 },
+                filterEnvelope: { attack: 0.02, decay: 0.4, sustain: 0.2, baseFrequency: 500, octaves: 2.5 }
+            }).toDestination();
+
+            this.initialized = true;
+        } catch (err) {
+            console.warn("Audio initialization skipped:", err);
+        }
+    }
+
+    setRainVolume(level) {
+        if (!this.initialized || !this.rainGain) return;
+        this.rainGain.gain.rampTo(0.055 * level, 1.5);
+    }
+
+    playFootstep(isSprint = false) {
+        if (!this.initialized) return;
+        try {
+            this.stepSynth.volume.value = isSprint ? -20 : -25;
+            this.stepSynth.triggerAttackRelease(isSprint ? 0.12 : 0.09);
+            this.splashSynth.volume.value = isSprint ? -27 : -31;
+            this.splashSynth.triggerAttackRelease(isSprint ? 0.08 : 0.055, "+0.03");
+        } catch (e) {}
+    }
+
+    playBreathing(gender = 'male', fatigue = 0.0) {
+        if (!this.initialized) return;
+        try {
+            const baseFreq = gender === 'female' ? 410 : 350;
+            this.breathFilter.frequency.rampTo(baseFreq + fatigue * 120, 0.25);
+            this.breathSynth.volume.value = -7 + fatigue * 5;
+            this.breathSynth.triggerAttackRelease(0.72);
+            setTimeout(() => {
+                if (this.initialized) this.breathSynth.triggerAttackRelease(fatigue > 0.35 ? 0.42 : 0.62);
+            }, fatigue > 0.35 ? 410 : 820);
+        } catch (e) {}
+    }
+
+    playNightJungleCall(distance = 'far') {
+        // Disabled: synthetic tonal calls read as game beeps. Wildlife recordings handle animal cues.
+        return;
+    }
+
+    playWolfCall(distance = 80, fear = 0.0) {
+        if (!this.initialized || !this.wolfSynth) return;
+        try {
+            const near = Math.max(0, Math.min(1, 1 - distance / 120));
+            if (this.wolfRecording) {
+                this.wolfRecording.pause();
+                this.wolfRecording.currentTime = 0;
+                this.wolfRecording.volume = Math.min(1, 0.05 + near * 0.24 + fear * 0.05);
+                this.wolfRecording.play().catch(() => {});
+            }
+            if (!this.wolfRecording) {
+                this.wolfSynth.volume.value = -23 + near * 12 + fear * 3;
+                this.wolfFilter.frequency.rampTo(420 + near * 520, 0.25);
+                this.wolfSynth.triggerAttackRelease(near > 0.65 ? "E2" : "C2", "1n");
+                setTimeout(() => {
+                    if (!this.initialized) return;
+                    this.wolfSynth.triggerAttackRelease(near > 0.65 ? "A1" : "G1", "1n");
+                }, 520);
+            }
+        } catch (e) {}
+    }
+
+    playSquirrelChatter(distance = 30, fear = 0.0) {
+        if (!this.initialized || !this.squirrelSynth) return;
+        try {
+            const near = Math.max(0, Math.min(1, 1 - distance / 55));
+            if (this.squirrelRecording) {
+                this.squirrelRecording.pause();
+                this.squirrelRecording.currentTime = 0;
+                this.squirrelRecording.volume = Math.min(1, 0.035 + near * 0.16);
+                this.squirrelRecording.play().catch(() => {});
+            }
+            if (!this.squirrelRecording) {
+                this.squirrelSynth.volume.value = -31 + near * 10 + fear * 2;
+                this.squirrelFilter.frequency.rampTo(1900 + near * 1800, 0.12);
+                const notes = ["A5", "C6", "E6", "B5"];
+                notes.forEach((note, i) => {
+                    setTimeout(() => {
+                        if (this.initialized) this.squirrelSynth.triggerAttackRelease(note, "32n");
+                    }, i * 95);
+                });
+            }
+        } catch (e) {}
+    }
+
+    playAttackAndScream(gender = 'male', outcomeType = 'PREDATOR_AMBUSH') {
+        if (!this.initialized) return;
+        try {
+            if (outcomeType === 'TRIBE_CAPTURE') {
+                this.splashFilter.frequency.value = 3200;
+                this.splashSynth.volume.value = -2;
+                this.splashSynth.triggerAttackRelease("16n");
+            } else if (outcomeType === 'SPIKE_TRAP' || outcomeType === 'QUICKSAND_MIRE') {
+                this.stepSynth.volume.value = -1;
+                this.stepSynth.triggerAttackRelease("2n");
+            } else {
+                // Use recorded animal texture instead of a synthetic game-like roar.
+                this.playWolfCall(18, 1.0);
+            }
+
+            // Explorer panicked scream / gasp
+            setTimeout(() => {
+                if (!this.initialized) return;
+                this.vocalSynth.volume.value = -4;
+                const screamNote = gender === 'female' ? "Eb5" : "G3";
+                this.vocalSynth.triggerAttackRelease(screamNote, "2n");
+            }, 140);
+        } catch (e) {}
+    }
+}
+
+const audioEngine = new JungleAudioEngine();
+
+const interactiveObjects = [];
+const audioWildlife = [
+    { type: 'wolf', position: new THREE.Vector3(-28, 0, -92), radius: 80, cooldown: 0 },
+    { type: 'wolf', position: new THREE.Vector3(34, 0, -174), radius: 105, cooldown: 0 },
+    { type: 'wolf', position: new THREE.Vector3(-52, 0, -228), radius: 92, cooldown: 0 },
+    { type: 'squirrel', position: new THREE.Vector3(-10, 1.2, -42), radius: 38, cooldown: 0 },
+    { type: 'squirrel', position: new THREE.Vector3(20, 1.1, -128), radius: 48, cooldown: 0 },
+    { type: 'squirrel', position: new THREE.Vector3(-36, 1.0, -188), radius: 52, cooldown: 0 },
+    { type: 'squirrel', position: new THREE.Vector3(46, 1.0, -252), radius: 56, cooldown: 0 }
+];
+
+let scene, camera, renderer, composer, clock;
+let handsGroup, leftHandGroup, rightHandGroup, leftFingers = [], rightFingers = [];
+let sunLight, hemiLight, fillLight, lanternLight;
+let filmGradePass;
+let gltfLoader, realVegetationGroup, realWildlifeGroup;
+let realVegetationReady = false;
+const realWildlifeMixers = [];
+const realWildlifeActors = [];
+const realVegetationActors = [];
+let proceduralVegetationGroup;
+let groundMaterial;
+let starField, moonMesh;
+let windMaterials = [];
+let rainSystem, sporeSystem, splashRipples = [], puddleMeshes = [], volumetricRays = [];
+let prehistoricAnimals = [], butterflies = [], dartFrogs = [];
+let riverShaderMat, waterfallShaderMat;
+let textures = {};
+
+function createBotanicalAndSurfaceTextures() {
+    // 1. Monsterra / Split Tropical Leaf Texture (Alpha Cutout)
+    const monsteraCanvas = document.createElement('canvas');
+    monsteraCanvas.width = 512;
+    monsteraCanvas.height = 512;
+    const mCtx = monsteraCanvas.getContext('2d');
+    mCtx.clearRect(0, 0, 512, 512);
+
+    const leafGrad = mCtx.createRadialGradient(256, 300, 20, 256, 256, 230);
+    leafGrad.addColorStop(0.0, '#1e4620');
+    leafGrad.addColorStop(0.6, '#143316');
+    leafGrad.addColorStop(1.0, '#0a1f0c');
+    mCtx.fillStyle = leafGrad;
+
+    mCtx.beginPath();
+    mCtx.moveTo(256, 490);
+    mCtx.bezierCurveTo(60, 440, 30, 180, 256, 25);
+    mCtx.bezierCurveTo(482, 180, 452, 440, 256, 490);
+    mCtx.fill();
+
+    // Cut out natural fenestrations (slits in Monstera leaf)
+    mCtx.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 6; i++) {
+        const y = 110 + i * 56;
+        const w = 130 - Math.abs(i - 2.5) * 22;
+        [-1, 1].forEach(side => {
+            mCtx.beginPath();
+            mCtx.ellipse(256 + side * (55 + w * 0.4), y, w * 0.55, 11, side * 0.22, 0, Math.PI * 2);
+            mCtx.fill();
+        });
+    }
+    mCtx.globalCompositeOperation = 'source-over';
+
+    // Central midrib & veins
+    mCtx.strokeStyle = '#2d5a27';
+    mCtx.lineWidth = 6;
+    mCtx.beginPath();
+    mCtx.moveTo(256, 495);
+    mCtx.lineTo(256, 35);
+    mCtx.stroke();
+
+    const monsteraTex = new THREE.CanvasTexture(monsteraCanvas);
+
+    // 2. Detailed Multi-Leaflet Fern Frond Texture (Alpha Cutout)
+    const fernCanvas = document.createElement('canvas');
+    fernCanvas.width = 512;
+    fernCanvas.height = 1024;
+    const fCtx = fernCanvas.getContext('2d');
+    fCtx.clearRect(0, 0, 512, 1024);
+
+    // Central stem
+    fCtx.strokeStyle = '#1b3b1a';
+    fCtx.lineWidth = 8;
+    fCtx.beginPath();
+    fCtx.moveTo(256, 1015);
+    fCtx.quadraticCurveTo(260, 512, 256, 15);
+    fCtx.stroke();
+
+    // 46 pairs of organic serrated pinnae (leaflets)
+    for (let i = 0; i < 46; i++) {
+        const t = i / 46;
+        const y = 980 - t * 945;
+        const span = Math.sin(Math.pow(t, 0.65) * Math.PI) * 235;
+        if (span < 6) continue;
+
+        [-1, 1].forEach(side => {
+            const pGrad = fCtx.createLinearGradient(256, y, 256 + side * span, y - 18);
+            pGrad.addColorStop(0.0, '#0f2912');
+            pGrad.addColorStop(0.55, '#1e4d22');
+            pGrad.addColorStop(1.0, '#3a6b33');
+            fCtx.fillStyle = pGrad;
+
+            fCtx.beginPath();
+            fCtx.moveTo(256, y);
+            fCtx.quadraticCurveTo(256 + side * span * 0.5, y - 22, 256 + side * span, y - 10);
+            fCtx.quadraticCurveTo(256 + side * span * 0.55, y + 8, 256, y + 10);
+            fCtx.closePath();
+            fCtx.fill();
+        });
+    }
+    const fernTex = new THREE.CanvasTexture(fernCanvas);
+
+    // 3. Mossy Rainforest Bark Texture + Bump Map
+    const barkCanvas = document.createElement('canvas');
+    barkCanvas.width = 1024;
+    barkCanvas.height = 1024;
+    const bCtx = barkCanvas.getContext('2d');
+    bCtx.fillStyle = '#1c1510';
+    bCtx.fillRect(0, 0, 1024, 1024);
+    for (let i = 0; i < 18000; i++) {
+        const rand = Math.random();
+        if (rand > 0.68) {
+            // Velvety green bryophyte moss patches
+            bCtx.fillStyle = 'rgba(22, 58, 28, 0.55)';
+            bCtx.fillRect(Math.random() * 1024, Math.random() * 1024, 6 + Math.random() * 18, 25 + Math.random() * 90);
+        } else {
+            bCtx.fillStyle = rand > 0.3 ? 'rgba(10, 7, 5, 0.8)' : 'rgba(42, 32, 23, 0.55)';
+            bCtx.fillRect(Math.random() * 1024, Math.random() * 1024, 2 + Math.random() * 6, 35 + Math.random() * 130);
+        }
+    }
+    const barkTex = new THREE.CanvasTexture(barkCanvas);
+    barkTex.wrapS = barkTex.wrapT = THREE.RepeatWrapping;
+    barkTex.repeat.set(2, 5);
+
+    // 4. Organic Forest Floor Humus, Fallen Leaves & Mud Puddles
+    const groundCanvas = document.createElement('canvas');
+    groundCanvas.width = 1024;
+    groundCanvas.height = 1024;
+    const gCtx = groundCanvas.getContext('2d');
+    gCtx.fillStyle = '#121810';
+    gCtx.fillRect(0, 0, 1024, 1024);
+    for (let i = 0; i < 24000; i++) {
+        const r = Math.random();
+        if (r > 0.65) {
+            // Mossy soil
+            gCtx.fillStyle = 'rgba(20, 44, 22, 0.6)';
+        } else if (r > 0.25) {
+            // Wet darkpeat & fallen dead leaves
+            gCtx.fillStyle = 'rgba(36, 26, 16, 0.65)';
+        } else {
+            // Dark rain puddle
+            gCtx.fillStyle = 'rgba(6, 12, 9, 0.85)';
+        }
+        gCtx.beginPath();
+        gCtx.arc(Math.random() * 1024, Math.random() * 1024, 2 + Math.random() * 16, 0, Math.PI * 2);
+        gCtx.fill();
+    }
+    const groundTex = new THREE.CanvasTexture(groundCanvas);
+    groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
+    groundTex.repeat.set(55, 55);
+
+    // 5. Overhead Canopy Bough Cluster Texture
+    const canopyCanvas = document.createElement('canvas');
+    canopyCanvas.width = 512;
+    canopyCanvas.height = 512;
+    const cCtx = canopyCanvas.getContext('2d');
+    cCtx.clearRect(0, 0, 512, 512);
+    for (let i = 0; i < 320; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const rad = Math.pow(Math.random(), 0.65) * 230;
+        const lx = 256 + Math.cos(angle) * rad;
+        const ly = 256 + Math.sin(angle) * rad;
+        cCtx.save();
+        cCtx.translate(lx, ly);
+        cCtx.rotate(angle);
+        cCtx.fillStyle = Math.random() > 0.4 ? '#113019' : '#1d4723';
+        cCtx.beginPath();
+        cCtx.ellipse(0, 0, 12 + Math.random() * 16, 28 + Math.random() * 24, 0, 0, Math.PI * 2);
+        cCtx.fill();
+        cCtx.restore();
+    }
+    const canopyTex = new THREE.CanvasTexture(canopyCanvas);
+
+    // 6. Subtle Micro-Skin Texture
+    const skinCanvas = document.createElement('canvas');
+    skinCanvas.width = 512;
+    skinCanvas.height = 512;
+    const sCtx = skinCanvas.getContext('2d');
+    sCtx.fillStyle = '#808080';
+    sCtx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 16000; i++) {
+        const v = 115 + Math.floor(Math.random() * 25);
+        sCtx.fillStyle = `rgb(${v},${v},${v})`;
+        sCtx.fillRect(Math.random() * 512, Math.random() * 512, 1.5, 1.5);
+    }
+    const skinBump = new THREE.CanvasTexture(skinCanvas);
+    skinBump.wrapS = skinBump.wrapT = THREE.RepeatWrapping;
+    skinBump.repeat.set(6, 6);
+
+    textures = { monsteraTex, fernTex, barkTex, groundTex, canopyTex, skinBump };
+}
+
+function enhanceFoliageMaterial(material, scatterHex = 0x4ade80, scatterStrength = 0.35, windAmplitude = 0.08) {
+    material.onBeforeCompile = (shader) => {
+        shader.uniforms.uTime = { value: 0 };
+        shader.uniforms.uScatterColor = { value: new THREE.Color(scatterHex) };
+        shader.uniforms.uScatterStrength = { value: scatterStrength };
+        shader.uniforms.uWindAmp = { value: windAmplitude };
+
+        shader.vertexShader = `
+            uniform float uTime;
+            uniform float uWindAmp;
+        ` + shader.vertexShader;
+
+        shader.vertexShader = shader.vertexShader.replace(
+            '#include <begin_vertex>',
+            `
+            #include <begin_vertex>
+            float heightFactor = max(0.0, position.y);
+            float sway = sin(uTime * 1.8 + position.x * 1.5 + position.z * 1.5) * uWindAmp * heightFactor;
+            transformed.x += sway;
+            transformed.z += sway * 0.6;
+            `
+        );
+
+        shader.fragmentShader = `
+            uniform vec3 uScatterColor;
+            uniform float uScatterStrength;
+        ` + shader.fragmentShader;
+
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <dithering_fragment>',
+            `
+            #include <dithering_fragment>
+            #if NUM_DIR_LIGHTS > 0
+                float backLight = max(0.0, dot(-vNormal, directionalLights[0].direction));
+                gl_FragColor.rgb += uScatterColor * pow(backLight, 1.5) * uScatterStrength;
+            #endif
+            `
+        );
+
+        windMaterials.push(shader);
+    };
+    return material;
+}
+
+function loadGLTFAsset(url) {
+    return new Promise((resolve, reject) => {
+        if (!gltfLoader) return reject(new Error('GLTFLoader unavailable'));
+        gltfLoader.load(url, resolve, undefined, reject);
+    });
+}
+
+function terrainHeightAt(x, z) {
+    if (z < -180 && Math.abs(x - 4) < 12) return 0;
+    return Math.sin(x * 0.08) * Math.cos(z * 0.08) * 0.35 + Math.sin(x * 0.25 + z * 0.2) * 0.12;
+}
+
+function createNightSky() {
+    const starPositions = new Float32Array(1800 * 3);
+    for (let i = 0; i < 1800; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(0.18 + Math.random() * 0.82);
+        const radius = 430 + Math.random() * 80;
+        starPositions[i * 3] = Math.sin(phi) * Math.cos(theta) * radius;
+        starPositions[i * 3 + 1] = Math.cos(phi) * radius + 80;
+        starPositions[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * radius;
+    }
+    const starGeometry = new THREE.BufferGeometry();
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starMaterial = new THREE.PointsMaterial({
+        color: 0xc6d8ee,
+        size: 0.72,
+        transparent: true,
+        opacity: 0.78,
+        depthWrite: false,
+        fog: false,
+        sizeAttenuation: true
+    });
+    starField = new THREE.Points(starGeometry, starMaterial);
+    starField.frustumCulled = false;
+    scene.add(starField);
+
+    const moonMaterial = new THREE.MeshBasicMaterial({ color: 0xc4d2df, transparent: true, opacity: 0.82, fog: false });
+    moonMesh = new THREE.Mesh(new THREE.SphereGeometry(14, 32, 20), moonMaterial);
+    moonMesh.position.set(-170, 210, -420);
+    scene.add(moonMesh);
+}
+
+function prepareRealAsset(root, targetHeight) {
+    root.traverse((node) => {
+        if (!node.isMesh) return;
+        node.castShadow = true;
+        node.receiveShadow = true;
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        materials.forEach((mat) => {
+            if (!mat) return;
+            if ('roughness' in mat) mat.roughness = Math.max(mat.roughness || 0.7, 0.74);
+            if ('metalness' in mat) mat.metalness = 0.0;
+            if (mat.alphaMode === 'MASK') mat.alphaTest = Math.max(mat.alphaTest || 0.35, 0.35);
+            [mat.map, mat.normalMap, mat.roughnessMap, mat.metalnessMap].forEach((texture) => {
+                if (!texture) return;
+                texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                texture.minFilter = THREE.LinearMipmapLinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+            });
+        });
+    });
+    root.updateMatrixWorld(true);
+    const initialBox = new THREE.Box3().setFromObject(root);
+    const height = Math.max(0.001, initialBox.max.y - initialBox.min.y);
+    const scale = targetHeight / height;
+    root.scale.multiplyScalar(scale);
+    root.updateMatrixWorld(true);
+    const scaledBox = new THREE.Box3().setFromObject(root);
+    root.position.y -= scaledBox.min.y;
+    return root;
+}
+
+function addRealVegetation(template, position, targetHeight, rotationY, type, radius) {
+    const instance = prepareRealAsset(template.clone(true), targetHeight);
+    instance.position.x = position.x;
+    instance.position.z = position.z;
+    instance.position.y = terrainHeightAt(position.x, position.z);
+    instance.rotation.y = rotationY;
+    instance.userData.assetType = type;
+    realVegetationGroup.add(instance);
+    realVegetationActors.push({ object: instance, x: position.x, z: position.z });
+    interactiveObjects.push({ object: instance, position: new THREE.Vector3(position.x, 0, position.z), radius, type, touchedAt: -10 });
+    return instance;
+}
+
+function addRealWildlife(gltf, position, scale, type) {
+    const instance = THREE.SkeletonUtils ? THREE.SkeletonUtils.clone(gltf.scene) : gltf.scene.clone(true);
+    instance.updateMatrixWorld(true);
+    const initialBox = new THREE.Box3().setFromObject(instance);
+    const initialHeight = Math.max(0.001, initialBox.max.y - initialBox.min.y);
+    instance.scale.multiplyScalar(scale / initialHeight);
+    instance.updateMatrixWorld(true);
+    const scaledBox = new THREE.Box3().setFromObject(instance);
+    instance.position.copy(position);
+    instance.position.y -= scaledBox.min.y;
+    instance.traverse((node) => {
+        if (!node.isMesh) return;
+        node.castShadow = true;
+        node.receiveShadow = true;
+    });
+    realWildlifeGroup.add(instance);
+    realWildlifeActors.push({ object: instance, type, base: position.clone(), phase: Math.random() * Math.PI * 2 });
+    if (gltf.animations && gltf.animations.length) {
+        const mixer = new THREE.AnimationMixer(instance);
+        const preferred = gltf.animations.find((clip) => /walk|run|idle/i.test(clip.name)) || gltf.animations[0];
+        mixer.clipAction(preferred).play();
+        realWildlifeMixers.push(mixer);
+    }
+    const audioTarget = audioWildlife.find((entry) => entry.type === type && !entry.object);
+    if (audioTarget) audioTarget.object = instance;
+    return instance;
+}
+
+async function loadRealWorldAssets() {
+    if (!THREE.GLTFLoader) return;
+    gltfLoader = new THREE.GLTFLoader();
+    if (THREE.DRACOLoader) {
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+        gltfLoader.setDRACOLoader(dracoLoader);
+    }
+    realVegetationGroup = new THREE.Group();
+    realVegetationGroup.name = 'CC0_PBR_Rainforest_Vegetation';
+    realWildlifeGroup = new THREE.Group();
+    realWildlifeGroup.name = 'GLB_Wildlife';
+    scene.add(realVegetationGroup, realWildlifeGroup);
+
+    const textureLoader = new THREE.TextureLoader();
+    const forestDiff = textureLoader.load('assets/materials/forest_floor/forest_floor_diff_1k.jpg');
+    const forestNormal = textureLoader.load('assets/materials/forest_floor/forest_floor_nor_gl_1k.jpg');
+    const forestRough = textureLoader.load('assets/materials/forest_floor/forest_floor_rough_1k.jpg');
+    [forestDiff, forestNormal, forestRough].forEach((texture) => {
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(55, 55);
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    });
+    forestDiff.encoding = THREE.sRGBEncoding;
+    if (groundMaterial) {
+        groundMaterial.map = forestDiff;
+        groundMaterial.normalMap = forestNormal;
+        groundMaterial.roughnessMap = forestRough;
+        groundMaterial.bumpMap = forestNormal;
+        groundMaterial.bumpScale = 0.018;
+        groundMaterial.needsUpdate = true;
+    }
+
+    const assetRoot = 'assets/models/polyhaven/';
+    const progressBar = document.getElementById('asset-progress-bar');
+    const setProgress = (value) => { if (progressBar) progressBar.style.width = `${value}%`; };
+    setProgress(12);
+    const results = await Promise.allSettled([
+        loadGLTFAsset('assets/models/realistic/island_tree_01_draco.glb'),
+        loadGLTFAsset('assets/models/realistic/pachira_aquatica_01_draco.glb'),
+        loadGLTFAsset('assets/models/realistic/fern_02_draco.glb'),
+        loadGLTFAsset('assets/models/realistic/shrub_02_draco.glb'),
+        loadGLTFAsset('assets/models/realistic/anthurium_botany_01_draco.glb')
+    ]);
+    setProgress(70);
+    const [treeResult, pachiraResult, fernResult, shrubResult, anthuriumResult] = results;
+    const tree = treeResult.status === 'fulfilled' ? treeResult.value : null;
+    const pachira = pachiraResult.status === 'fulfilled' ? pachiraResult.value : null;
+    const fern = fernResult.status === 'fulfilled' ? fernResult.value : null;
+    const shrub = shrubResult.status === 'fulfilled' ? shrubResult.value : null;
+    const anthurium = anthuriumResult.status === 'fulfilled' ? anthuriumResult.value : null;
+
+    const treeTemplates = [tree, pachira].filter(Boolean).map((result) => result.scene);
+    const undergrowthTemplates = [fern, shrub, anthurium].filter(Boolean).map((result) => result.scene);
+    if (treeTemplates.length && undergrowthTemplates.length) {
+        for (let i = 0; i < 200; i++) {
+            const side = i % 2 === 0 ? -1 : 1;
+            const lane = i % 20;
+            const angle = i * 2.39996;
+            const x = side * (14 + lane * 8.2) + Math.sin(angle) * 5.5;
+            const z = 8 - (i % 92) * 5.45 - Math.cos(angle * 0.7) * 10;
+            if (Math.hypot(x, z) < 8 || (z < -188 && Math.abs(x) < 17)) continue;
+            const template = treeTemplates[i % treeTemplates.length];
+            addRealVegetation(template, { x, z }, 9.5 + (i % 6) * 2.2, angle * 1.7, 'TREE', 1.7 + (i % 3) * 0.5);
+        }
+        for (let i = 0; i < 700; i++) {
+            const angle = i * 2.618;
+            const side = i % 2 === 0 ? -1 : 1;
+            const x = side * (5.8 + (i % 25) * 5.6) + Math.sin(angle) * 3.8;
+            const z = 8 - (i % 112) * 4.55 - Math.cos(angle) * 10;
+            if (Math.abs(x) < 4.2) continue;
+            const template = undergrowthTemplates[i % undergrowthTemplates.length];
+            const type = i % 3 === 0 ? 'FERN' : i % 3 === 1 ? 'SHRUB' : 'ANTHURIUM';
+            const height = type === 'FERN' ? 0.75 + (i % 5) * 0.22 : type === 'ANTHURIUM' ? 0.45 + (i % 4) * 0.18 : 1.4 + (i % 4) * 0.32;
+            addRealVegetation(template, { x, z }, height, angle, type, type === 'FERN' ? 0.55 : 0.82);
+        }
+        realVegetationReady = true;
+        if (proceduralVegetationGroup) proceduralVegetationGroup.visible = false;
+    }
+
+    GAME_STATE.assetsReady = true;
+    setProgress(100);
+    const loaderOverlay = document.getElementById('asset-loader');
+    if (loaderOverlay) loaderOverlay.classList.add('hidden');
+    const beginButton = document.getElementById('begin-btn');
+    if (beginButton) {
+        beginButton.disabled = false;
+        beginButton.querySelector('span:last-child').textContent = 'ENTER FOREST';
+    }
+}
+
+function createOrganicSplineMesh(controlPoints, radialSegments, tubularSegments, material, profileModFn) {
+    const curve = new THREE.CatmullRomCurve3(controlPoints.map(p => new THREE.Vector3(p[0], p[1], p[2])));
+    const frames = curve.computeFrenetFrames(tubularSegments, false);
+    const positions = [];
+    const uvs = [];
+    const indices = [];
+
+    for (let i = 0; i <= tubularSegments; i++) {
+        const u = i / tubularSegments;
+        const pt = curve.getPointAt(u);
+        const N = frames.normals[i];
+        const B = frames.binormals[i];
+
+        const fIdx = u * (controlPoints.length - 1);
+        const idx0 = Math.floor(fIdx);
+        const idx1 = Math.min(controlPoints.length - 1, idx0 + 1);
+        const frac = fIdx - idx0;
+        const rx = THREE.MathUtils.lerp(controlPoints[idx0][3], controlPoints[idx1][3], frac);
+        const ry = THREE.MathUtils.lerp(
+            controlPoints[idx0][4] !== undefined ? controlPoints[idx0][4] : controlPoints[idx0][3],
+            controlPoints[idx1][4] !== undefined ? controlPoints[idx1][4] : controlPoints[idx1][3],
+            frac
+        );
+
+        for (let j = 0; j <= radialSegments; j++) {
+            const v = j / radialSegments;
+            const theta = v * Math.PI * 2;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+
+            const mod = profileModFn ? profileModFn(u, theta) : 1.0;
+            const rH = rx * mod;
+            const rV = ry * mod;
+
+            const vx = pt.x + (N.x * cosT * rH + B.x * sinT * rV);
+            const vy = pt.y + (N.y * cosT * rH + B.y * sinT * rV);
+            const vz = pt.z + (N.z * cosT * rH + B.z * sinT * rV);
+
+            positions.push(vx, vy, vz);
+            uvs.push(u * 3.0, v * 2.0);
+        }
+    }
+
+    const stride = radialSegments + 1;
+    for (let i = 0; i < tubularSegments; i++) {
+        for (let j = 0; j < radialSegments; j++) {
+            const a = i * stride + j;
+            const b = (i + 1) * stride + j;
+            const c = (i + 1) * stride + (j + 1);
+            const d = i * stride + (j + 1);
+            indices.push(a, b, d);
+            indices.push(b, c, d);
+        }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setIndex(indices);
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.computeVertexNormals();
+
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
+}
+
+function buildFirstPersonHands() {
+    if (handsGroup) {
+        camera.remove(handsGroup);
+    }
+    handsGroup = new THREE.Group();
+    leftFingers = [];
+    rightFingers = [];
+
+    const isFemale = GAME_STATE.gender === 'female';
+    const skinTone = isFemale ? 0xb9826e : 0x996e5b;
+    const scale = isFemale ? 0.88 : 1.0;
+
+    // Matte, natural human dermis material (no glossy plastic clearcoat)
+    const skinMat = new THREE.MeshPhysicalMaterial({
+        color: skinTone,
+        roughness: 0.86,
+        metalness: 0.0,
+        reflectivity: 0.22,
+        clearcoat: 0.0,
+        bumpMap: textures.skinBump,
+        bumpScale: 0.00065
+    });
+
+    const nailMat = new THREE.MeshStandardMaterial({
+        color: 0xe8c5b5,
+        roughness: 0.58,
+        metalness: 0.0
+    });
+
+    const cuffMat = new THREE.MeshStandardMaterial({
+        color: isFemale ? 0x1e3a2f : 0x2b2118,
+        roughness: 0.96,
+        bumpMap: textures.barkTex,
+        bumpScale: 0.008
+    });
+
+    function buildSingleHand(isLeft) {
+        const handRoot = new THREE.Group();
+        const side = isLeft ? -1 : 1;
+
+        // Forearm + wrist + metacarpal palm sculpted smoothly
+        const forearmPalmPts = [
+            [side * 0.05 * scale, -0.22 * scale, 0.32, 0.044 * scale, 0.038 * scale],
+            [side * 0.02 * scale, -0.11 * scale, 0.14, 0.036 * scale, 0.029 * scale],
+            [0.0,                 -0.03 * scale, 0.03, 0.042 * scale, 0.020 * scale],
+            [0.0,                  0.00,        -0.055 * scale, 0.046 * scale, 0.016 * scale]
+        ];
+        const palmMesh = createOrganicSplineMesh(forearmPalmPts, 28, 36, skinMat, (u, theta) => {
+            const knuckleArch = u > 0.7 ? Math.sin(theta * 4.0) * 0.035 : 0.0;
+            return 1.0 + knuckleArch;
+        });
+        handRoot.add(palmMesh);
+
+        const knuckleGeo = new THREE.SphereGeometry(0.011 * scale, 12, 10);
+        [-0.028, -0.009, 0.010, 0.029].forEach((offset, idx) => {
+            const knuckle = new THREE.Mesh(knuckleGeo, skinMat);
+            knuckle.position.set((isLeft ? -offset : offset) * scale, 0.005 + idx * 0.0005, -0.056 * scale);
+            knuckle.scale.set(1.0, 0.72, 0.82);
+            handRoot.add(knuckle);
+        });
+
+        // Woven expedition wrist wrap
+        const cuffPts = [
+            [side * 0.03 * scale, -0.15 * scale, 0.21, 0.043 * scale, 0.036 * scale],
+            [side * 0.015 * scale, -0.09 * scale, 0.11, 0.039 * scale, 0.032 * scale]
+        ];
+        const cuffMesh = createOrganicSplineMesh(cuffPts, 22, 14, cuffMat);
+        handRoot.add(cuffMesh);
+
+        // Thumb (3-segment anatomical)
+        const thumbPivot = new THREE.Group();
+        thumbPivot.position.set(-side * 0.038 * scale, -0.012 * scale, -0.01 * scale);
+        const thumbPts = [
+            [0, 0, 0, 0.015 * scale, 0.014 * scale],
+            [-side * 0.022 * scale, -0.006 * scale, -0.032 * scale, 0.012 * scale, 0.011 * scale],
+            [-side * 0.034 * scale, -0.015 * scale, -0.062 * scale, 0.009 * scale, 0.008 * scale]
+        ];
+        thumbPivot.add(createOrganicSplineMesh(thumbPts, 16, 18, skinMat));
+        handRoot.add(thumbPivot);
+
+        // 4 Articulated Fingers (Index, Middle, Ring, Pinky)
+        const fingerConfigs = [
+            { xOffset: -0.031, len: 0.066, baseCurl: 0.18 },
+            { xOffset: -0.010, len: 0.074, baseCurl: 0.15 },
+            { xOffset:  0.011, len: 0.069, baseCurl: 0.20 },
+            { xOffset:  0.031, len: 0.054, baseCurl: 0.26 }
+        ];
+
+        const fingerStore = isLeft ? leftFingers : rightFingers;
+
+        fingerConfigs.forEach((fc, idx) => {
+            const fGroup = new THREE.Group();
+            const fx = (isLeft ? -fc.xOffset : fc.xOffset) * scale;
+            fGroup.position.set(fx, 0.0, -0.055 * scale);
+
+            const L = fc.len * scale;
+            const pts = [
+                [0, 0, 0, 0.0105 * scale, 0.0095 * scale],
+                [0, -0.005, -L * 0.38, 0.009 * scale, 0.0085 * scale],
+                [0, -0.014, -L * 0.72, 0.0078 * scale, 0.0072 * scale],
+                [0, -0.024, -L * 1.00, 0.0062 * scale, 0.0054 * scale]
+            ];
+            const fMesh = createOrganicSplineMesh(pts, 16, 20, skinMat, (u) => {
+                // Subtle knuckle joint swell
+                const joint1 = Math.exp(-Math.pow((u - 0.38) * 14, 2)) * 0.09;
+                const joint2 = Math.exp(-Math.pow((u - 0.72) * 14, 2)) * 0.07;
+                return 1.0 + joint1 + joint2;
+            });
+            fGroup.add(fMesh);
+
+            // Anatomical fingernail
+            const nail = new THREE.Mesh(new THREE.SphereGeometry(0.005 * scale, 12, 10), nailMat);
+            nail.scale.set(0.85, 0.22, 1.35);
+            nail.rotation.x = 0.28;
+            nail.position.set(0, -0.021, -L * 0.96);
+            fGroup.add(nail);
+
+            fGroup.rotation.x = fc.baseCurl;
+            handRoot.add(fGroup);
+            fingerStore.push({ group: fGroup, baseCurl: fc.baseCurl, phase: idx * 0.45 });
+        });
+
+        // Natural first-person framing in lower viewport
+        handRoot.position.set(side * 0.22, -0.23, -0.48);
+        handRoot.rotation.set(0.22, -side * 0.24, side * 0.08);
+        return handRoot;
+    }
+
+    leftHandGroup = buildSingleHand(true);
+    rightHandGroup = buildSingleHand(false);
+    handsGroup.add(leftHandGroup, rightHandGroup);
+
+    // Soft fill light for near foliage & hands
+    lanternLight = new THREE.PointLight(0xffd0a3, 0.18, 8, 2.0);
+    lanternLight.position.set(0, 0.1, -0.3);
+    handsGroup.add(lanternLight);
+
+    camera.add(handsGroup);
+    scene.add(camera);
+}
+
+function populateWANDERLVSTRainforest() {
+    // Matte mossy bark material (zero plastic shine)
+    const barkMat = new THREE.MeshStandardMaterial({
+        map: textures.barkTex,
+        bumpMap: textures.barkTex,
+        bumpScale: 0.08,
+        roughness: 0.92,
+        metalness: 0.0
+    });
+
+    // Overhead canopy leaf material with sunlit subsurface scattering
+    const canopyMat = new THREE.MeshStandardMaterial({
+        map: textures.canopyTex,
+        alphaTest: 0.35,
+        transparent: false,
+        side: THREE.DoubleSide,
+        roughness: 0.86,
+        metalness: 0.0
+    });
+    enhanceFoliageMaterial(canopyMat, 0x8fb79a, 0.12, 0.055);
+
+    // Fern frond material (multi-leaflet alpha cutout)
+    const fernMat = new THREE.MeshStandardMaterial({
+        map: textures.fernTex,
+        alphaTest: 0.25,
+        transparent: false,
+        side: THREE.DoubleSide,
+        roughness: 0.88,
+        metalness: 0.0
+    });
+    enhanceFoliageMaterial(fernMat, 0x9fc8a8, 0.16, 0.045);
+
+    // Monstera split-leaf material
+    const monsteraMat = new THREE.MeshStandardMaterial({
+        map: textures.monsteraTex,
+        alphaTest: 0.3,
+        transparent: false,
+        side: THREE.DoubleSide,
+        roughness: 0.82,
+        metalness: 0.0
+    });
+    enhanceFoliageMaterial(monsteraMat, 0x8dbb96, 0.14, 0.04);
+
+    // 1. Pre-build 3 Organic Fluted Buttress-Root Tree Trunk Variations
+    const trunkGeos = [0, 1, 2].map(seed => {
+        const geo = new THREE.CylinderGeometry(0.45, 1.75, 22, 28, 28, false);
+        geo.translate(0, 11, 0);
+        const pos = geo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+            let vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);
+            const hNorm = vy / 22.0;
+            const angle = Math.atan2(vz, vx);
+            // Fluted buttress roots flaring at the base
+            const buttress = Math.pow(Math.max(0, 1.0 - hNorm * 2.2), 2.2) * Math.sin(angle * 5.0 + seed * 1.7) * 0.78;
+            const rScale = Math.max(0.28, 1.0 + buttress);
+            const bendX = Math.sin(hNorm * Math.PI + seed) * 0.75;
+            const bendZ = Math.cos(hNorm * Math.PI + seed) * 0.55;
+            pos.setXYZ(i, vx * rScale + bendX, vy, vz * rScale + bendZ);
+        }
+        geo.computeVertexNormals();
+        return geo;
+    });
+
+    const canopyBoughGeo = new THREE.PlaneGeometry(9.0, 9.0, 4, 4);
+    canopyBoughGeo.rotateX(Math.PI / 2);
+
+    // Spawn 420 Multi-Sized Rainforest Trees (Giant Emergent, Mid-Canopy, and Young Saplings)
+    for (let i = 0; i < 420; i++) {
+        const x = (Math.random() - 0.5) * 280;
+        const z = -Math.random() * 500 + 18;
+        // Leave initial spawn clearing open
+        if (Math.hypot(x, z) < 6.5) continue;
+        // Leave central Sanctuary lagoon meadow open for vistas
+        if (z < -195 && Math.abs(x) < 16) continue;
+
+        const treeGroup = new THREE.Group();
+        const sizeTier = Math.random();
+        let scaleR = 1.0, scaleH = 1.0;
+
+        if (sizeTier < 0.28) {
+            // Colossal Emergent Kapok / Banyan Tree
+            scaleR = 1.25 + Math.random() * 0.6;
+            scaleH = 1.15 + Math.random() * 0.45;
+        } else if (sizeTier < 0.72) {
+            // Mid-Canopy Jungle Tree
+            scaleR = 0.65 + Math.random() * 0.45;
+            scaleH = 0.75 + Math.random() * 0.35;
+        } else {
+            // Slender Young Understory Tree
+            scaleR = 0.28 + Math.random() * 0.25;
+            scaleH = 0.42 + Math.random() * 0.28;
+        }
+
+        const trunk = new THREE.Mesh(trunkGeos[i % 3], barkMat);
+        trunk.scale.set(scaleR, scaleH, scaleR);
+        trunk.rotation.y = Math.random() * Math.PI * 2;
+        trunk.castShadow = true;
+        trunk.receiveShadow = true;
+        treeGroup.add(trunk);
+
+        // Layered leafy canopy crown
+        const crownY = 20.5 * scaleH;
+        const boughCount = sizeTier > 0.72 ? 3 : 6;
+        for (let b = 0; b < boughCount; b++) {
+            const bough = new THREE.Mesh(canopyBoughGeo, canopyMat);
+            const bScale = scaleR * (0.85 + Math.random() * 0.5);
+            bough.scale.set(bScale, bScale, bScale);
+            bough.position.set(
+                (Math.random() - 0.5) * 4.0 * scaleR,
+                crownY - 1.5 + b * 0.8,
+                (Math.random() - 0.5) * 4.0 * scaleR
+            );
+            bough.rotation.z = (Math.random() - 0.5) * 0.35;
+            bough.rotation.y = Math.random() * Math.PI * 2;
+            treeGroup.add(bough);
+        }
+
+        treeGroup.position.set(x, terrainHeightAt(x, z), z);
+        proceduralVegetationGroup.add(treeGroup);
+    }
+
+    // 2. Arched Parabolic Fern Frond Geometry (for Ground Ferns & Dwarf Palms)
+    const archedFrondGeo = new THREE.PlaneGeometry(0.85, 2.2, 4, 14);
+    archedFrondGeo.translate(0, 1.1, 0);
+    const fPos = archedFrondGeo.attributes.position;
+    for (let i = 0; i < fPos.count; i++) {
+        const fx = fPos.getX(i), fy = fPos.getY(i);
+        const t = Math.max(0, Math.min(1, fy / 2.2));
+        const archZ = Math.pow(t, 1.55) * 1.15;
+        const archY = fy * (1.0 - t * 0.28) + Math.abs(fx) * 0.14;
+        fPos.setXYZ(i, fx, archY, archZ);
+    }
+    archedFrondGeo.computeVertexNormals();
+
+    // Spawn 140 Understory Dwarf Fan Palms & Tree Ferns (Mid-height 2.5m - 4.5m)
+    const palmStemGeo = new THREE.CylinderGeometry(0.12, 0.22, 2.6, 10, 8);
+    palmStemGeo.translate(0, 1.3, 0);
+    for (let i = 0; i < 140; i++) {
+        const px = (Math.random() - 0.5) * 240;
+        const pz = -Math.random() * 490 + 10;
+        if (Math.hypot(px, pz) < 5.0) continue;
+
+        const palmGroup = new THREE.Group();
+        const stemH = 0.7 + Math.random() * 0.9;
+        const stem = new THREE.Mesh(palmStemGeo, barkMat);
+        stem.scale.set(1, stemH, 1);
+        palmGroup.add(stem);
+
+        const crownFronds = 9 + Math.floor(Math.random() * 5);
+        for (let f = 0; f < crownFronds; f++) {
+            const frond = new THREE.Mesh(archedFrondGeo, fernMat);
+            frond.position.y = 2.5 * stemH;
+            frond.rotation.y = (f / crownFronds) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
+            const fs = 1.1 + Math.random() * 0.5;
+            frond.scale.set(fs, fs, fs);
+            palmGroup.add(frond);
+        }
+        palmGroup.position.set(px, terrainHeightAt(px, pz), pz);
+        proceduralVegetationGroup.add(palmGroup);
+    }
+
+    // 3. Spawn 900 Multi-Frond Ground Ferns & Broadleaf Monstera Clusters
+    const monsteraLeafGeo = new THREE.PlaneGeometry(1.1, 1.35, 5, 5);
+    monsteraLeafGeo.translate(0, 0.67, 0);
+    const mPos = monsteraLeafGeo.attributes.position;
+    for (let i = 0; i < mPos.count; i++) {
+        const mx = mPos.getX(i), my = mPos.getY(i);
+        const t = my / 1.35;
+        mPos.setZ(i, Math.pow(t, 1.4) * 0.55 - Math.abs(mx) * 0.15);
+    }
+    monsteraLeafGeo.computeVertexNormals();
+
+    for (let i = 0; i < 900; i++) {
+        const gx = (Math.random() - 0.5) * 250;
+        const gz = -Math.random() * 500 + 12;
+        if (Math.hypot(gx, gz) < 3.5) continue;
+
+        const cluster = new THREE.Group();
+        const isMonstera = Math.random() > 0.58;
+        const count = isMonstera ? (5 + Math.floor(Math.random() * 4)) : (8 + Math.floor(Math.random() * 6));
+
+        for (let c = 0; c < count; c++) {
+            const leafMesh = new THREE.Mesh(isMonstera ? monsteraLeafGeo : archedFrondGeo, isMonstera ? monsteraMat : fernMat);
+            leafMesh.rotation.y = (c / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.35;
+            const s = 0.55 + Math.random() * 0.75;
+            leafMesh.scale.set(s, s, s);
+            cluster.add(leafMesh);
+        }
+
+        cluster.position.set(gx, terrainHeightAt(gx, gz) + 0.02, gz);
+        proceduralVegetationGroup.add(cluster);
+    }
+
+    // 4. Hanging Canopy Liana Vines & Fallen Mossy Logs
+    const vineGeo = new THREE.CylinderGeometry(0.035, 0.045, 16, 6, 12);
+    vineGeo.translate(0, -8, 0);
+    const vPos = vineGeo.attributes.position;
+    for (let i = 0; i < vPos.count; i++) {
+        const vy = vPos.getY(i);
+        vPos.setX(i, vPos.getX(i) + Math.sin(vy * 0.6) * 0.35);
+        vPos.setZ(i, vPos.getZ(i) + Math.cos(vy * 0.5) * 0.35);
+    }
+    vineGeo.computeVertexNormals();
+
+    for (let v = 0; v < 180; v++) {
+        const vine = new THREE.Mesh(vineGeo, barkMat);
+        const vineX = (Math.random() - 0.5) * 300;
+        const vineZ = -Math.random() * 500;
+        vine.position.set(vineX, terrainHeightAt(vineX, vineZ) + 16 + Math.random() * 6, vineZ);
+        vine.rotation.y = Math.random() * Math.PI * 2;
+        proceduralVegetationGroup.add(vine);
+    }
+
+    // 5. Volumetric Sunbeams ("God Rays" piercing the emerald canopy like WANDERLVST reference)
+    const rayGeo = new THREE.ConeGeometry(4.5, 28, 16, 1, true);
+    rayGeo.translate(0, -14, 0);
+    const rayMat = new THREE.ShaderMaterial({
+        uniforms: {
+            uColor: { value: new THREE.Color(0xc0c9a8) },
+            uTime: { value: 0 }
+        },
+        vertexShader: `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform vec3 uColor;
+            uniform float uTime;
+            varying vec2 vUv;
+            void main() {
+                float fadeVert = sin(vUv.y * 3.14159);
+                float shimmer = 0.85 + 0.15 * sin(uTime * 1.5 + vUv.x * 12.0);
+                float alpha = fadeVert * 0.018 * shimmer;
+                gl_FragColor = vec4(uColor, alpha);
+            }
+        `,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide
+    });
+
+    for (let r = 0; r < 42; r++) {
+        const ray = new THREE.Mesh(rayGeo, rayMat);
+        ray.position.set((Math.random() - 0.5) * 180, 24, -Math.random() * 270);
+        ray.rotation.z = -0.28;
+        ray.rotation.x = 0.18;
+        scene.add(ray);
+        volumetricRays.push(ray);
+    }
+}
+
+function buildSanctuaryParadiseValley() {
+    // Winding Crystal River with animated water ripples
+    const riverGeo = new THREE.PlaneGeometry(18, 220, 48, 96);
+    riverGeo.rotateX(-Math.PI / 2);
+
+    riverShaderMat = new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 } },
+        vertexShader: `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                vec3 pos = position;
+                pos.x += sin(pos.z * 0.055) * 4.8 + sin(pos.z * 0.13) * 0.8;
+                pos.y += sin(pos.z * 0.22) * 0.025;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform float uTime;
+            varying vec2 vUv;
+            void main() {
+                vec2 uv = vUv * vec2(7.0, 42.0);
+                float flow = sin(uv.y - uTime * 2.25 + sin(uv.x * 2.1 + uTime * 0.35));
+                float cross = cos(uv.x * 4.0 - uv.y * 0.42 - uTime * 1.25);
+                float micro = sin(uv.y * 2.8 + uv.x * 8.0 - uTime * 2.8);
+                float spec = smoothstep(0.72, 0.98, flow * 0.52 + cross * 0.28 + micro * 0.2);
+                float bank = smoothstep(0.0, 0.16, vUv.x) * smoothstep(1.0, 0.84, vUv.x);
+                vec3 deepCol = vec3(0.012, 0.055, 0.075);
+                vec3 shallowCol = vec3(0.035, 0.16, 0.18);
+                vec3 reflectionCol = vec3(0.37, 0.53, 0.58);
+                vec3 finalCol = mix(deepCol, shallowCol, 0.42 + flow * 0.2);
+                finalCol += reflectionCol * spec * 0.22;
+                float foam = smoothstep(0.82, 0.98, abs(cross + flow * 0.35));
+                finalCol = mix(finalCol, vec3(0.63, 0.75, 0.75), foam * 0.1);
+                gl_FragColor = vec4(finalCol, 0.72 * bank);
+            }
+        `,
+        transparent: true,
+        side: THREE.DoubleSide
+    });
+
+    const riverMesh = new THREE.Mesh(riverGeo, riverShaderMat);
+    riverMesh.position.set(4, 0.04, -300);
+    scene.add(riverMesh);
+
+    // Towering Mossy Cliffs & Foaming Waterfall at Z = -305
+    const cliffMat = new THREE.MeshStandardMaterial({
+        map: textures.barkTex,
+        roughness: 0.9,
+        color: 0x1e2923
+    });
+    for (let c = 0; c < 14; c++) {
+        const cliffGeo = new THREE.CylinderGeometry(4 + Math.random() * 5, 7 + Math.random() * 6, 36 + Math.random() * 15, 12);
+        const cliff = new THREE.Mesh(cliffGeo, cliffMat);
+        const cx = (c - 6.5) * 11;
+        cliff.position.set(cx, 19, -420 - Math.abs(cx) * 0.15);
+        scene.add(cliff);
+    }
+
+    const fallsGeo = new THREE.PlaneGeometry(18, 48, 24, 48);
+    waterfallShaderMat = new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 } },
+        vertexShader: `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform float uTime;
+            varying vec2 vUv;
+            void main() {
+                float ribbons = sin(vUv.x * 34.0 + sin(vUv.y * 8.0) * 1.8 - uTime * 2.7) * 0.5 + 0.5;
+                float droplets = fract(vUv.y * 8.0 + uTime * 2.4 + sin(vUv.x * 9.0));
+                float mist = smoothstep(0.22, 0.0, vUv.y) * 0.6;
+                float foam = smoothstep(0.72, 0.98, ribbons * (1.0 - droplets * 0.38) + mist);
+                vec3 water = mix(vec3(0.07, 0.28, 0.32), vec3(0.56, 0.72, 0.75), foam);
+                float edge = smoothstep(0.0, 0.12, vUv.x) * smoothstep(1.0, 0.88, vUv.x);
+                float alpha = edge * (0.36 + foam * 0.42);
+                gl_FragColor = vec4(water, alpha);
+            }
+        `,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide
+    });
+    const fallsMesh = new THREE.Mesh(fallsGeo, waterfallShaderMat);
+    fallsMesh.position.set(4, 24, -420);
+    scene.add(fallsMesh);
+
+    // Multi-Petal Exotic Rainforest Flowers (Heliconia, Orchids, Lotus) throughout Jungle & Valley
+    const petalGeo = new THREE.PlaneGeometry(0.16, 0.34, 2, 4);
+    petalGeo.translate(0, 0.17, 0);
+    const pPos = petalGeo.attributes.position;
+    for (let i = 0; i < pPos.count; i++) {
+        const py = pPos.getY(i);
+        pPos.setZ(i, Math.pow(py / 0.34, 1.6) * 0.12);
+    }
+    petalGeo.computeVertexNormals();
+
+    const flowerColors = [0x9e5d62, 0xb38b4b, 0x75628d, 0x5f7f82, 0xa36c4e];
+    const flowerMats = flowerColors.map(col => new THREE.MeshStandardMaterial({
+        color: col,
+        roughness: 0.86,
+        metalness: 0.0,
+        side: THREE.DoubleSide
+    }));
+
+    for (let f = 0; f < 340; f++) {
+        const inValley = f < 220;
+        const fx = inValley ? ((Math.random() - 0.5) * 95 + 4) : ((Math.random() - 0.5) * 200);
+        const fz = inValley ? (-190 - Math.random() * 105) : (-Math.random() * 190);
+        const blossom = new THREE.Group();
+        const mat = flowerMats[f % flowerMats.length];
+
+        for (let p = 0; p < 6; p++) {
+            const petal = new THREE.Mesh(petalGeo, mat);
+            petal.rotation.y = (p / 6) * Math.PI * 2;
+            petal.rotation.x = 0.45;
+            blossom.add(petal);
+        }
+        blossom.position.set(fx, 0.25 + Math.random() * 0.4, fz);
+        const bs = 0.8 + Math.random() * 0.7;
+        blossom.scale.set(bs, bs, bs);
+        scene.add(blossom);
+    }
+}
+
+function createPrehistoricAnimal(type) {
+    const group = new THREE.Group();
+    group.userData = { limbs: [], neck: null, tail: null };
+
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x8f6d38, roughness: 0.42 });
+    const toothMat = new THREE.MeshStandardMaterial({ color: 0xd5c6a7, roughness: 0.62 });
+
+    if (type === 'SAUROPOD') {
+        const hideMat = new THREE.MeshStandardMaterial({
+            color: 0x3b4d3e,
+            roughness: 0.78,
+            bumpMap: textures.barkTex,
+            bumpScale: 0.04
+        });
+
+        const spinePts = [
+            [0, 1.6, -10.5, 0.08, 0.08],
+            [0, 2.3,  -7.5, 0.38, 0.42],
+            [0, 3.5,  -4.2, 1.15, 1.35],
+            [0, 4.4,  -1.2, 1.95, 2.25],
+            [0, 4.8,   1.5, 2.15, 2.55],
+            [0, 6.2,   2.9, 1.15, 1.30],
+            [0, 8.8,   4.1, 0.65, 0.72],
+            [0, 11.6,  5.2, 0.48, 0.52],
+            [0, 13.4,  6.0, 0.52, 0.58],
+            [0, 13.1,  6.8, 0.28, 0.24]
+        ];
+        group.add(createOrganicSplineMesh(spinePts, 28, 72, hideMat));
+
+        [[-1.3, 1.4, 4.5], [1.3, 1.4, 4.5], [-1.15, -1.8, 4.1], [1.15, -1.8, 4.1]].forEach(([lx, lz, topY], idx) => {
+            const legPivot = new THREE.Group();
+            legPivot.position.set(lx, topY, lz);
+            const legPts = [
+                [0, 0.2, 0, 0.85, 0.95],
+                [0, -topY * 0.5, 0.1, 0.58, 0.62],
+                [0, -topY, 0.15, 0.52, 0.45]
+            ];
+            legPivot.add(createOrganicSplineMesh(legPts, 20, 24, hideMat));
+            group.add(legPivot);
+            group.userData.limbs.push({ pivot: legPivot, phase: idx * Math.PI * 0.5 });
+        });
+
+    } else if (type === 'SMILODON') {
+        const furMat = new THREE.MeshStandardMaterial({
+            color: 0x8f4f22,
+            roughness: 0.82,
+            bumpMap: textures.skinBump,
+            bumpScale: 0.03
+        });
+
+        const torsoPts = [
+            [0, 0.85, -1.3, 0.06, 0.06],
+            [0, 1.05, -0.7, 0.42, 0.48],
+            [0, 1.18,  0.5, 0.56, 0.65],
+            [0, 1.38,  1.15, 0.35, 0.38],
+            [0, 1.32,  1.65, 0.22, 0.20]
+        ];
+        group.add(createOrganicSplineMesh(torsoPts, 24, 44, furMat));
+
+        // Dual curved saber canines
+        [-0.14, 0.14].forEach(fx => {
+            const fangPts = [
+                [fx, 1.24, 1.52, 0.04, 0.03],
+                [fx, 0.92, 1.56, 0.022, 0.015],
+                [fx, 0.78, 1.48, 0.004, 0.004]
+            ];
+            group.add(createOrganicSplineMesh(fangPts, 12, 16, toothMat));
+        });
+
+        [-0.16, 0.16].forEach(ex => {
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 12), eyeMat);
+            eye.position.set(ex, 1.42, 1.52);
+            group.add(eye);
+        });
+
+        [[-0.36, 0.55], [0.36, 0.55], [-0.32, -0.65], [0.32, -0.65]].forEach(([lx, lz], idx) => {
+            const legPivot = new THREE.Group();
+            legPivot.position.set(lx, 1.08, lz);
+            const lPts = [
+                [0, 0.1, 0, 0.24, 0.28],
+                [0, -0.55, -0.05, 0.15, 0.16],
+                [0, -1.08, 0.12, 0.14, 0.09]
+            ];
+            legPivot.add(createOrganicSplineMesh(lPts, 16, 20, furMat));
+            group.add(legPivot);
+            group.userData.limbs.push({ pivot: legPivot, phase: idx * Math.PI * 0.5 });
+        });
+
+    } else if (type === 'TERROR_BIRD') {
+        const featherMat = new THREE.MeshStandardMaterial({
+            color: 0x3f2e21,
+            roughness: 0.85,
+            bumpMap: textures.barkTex,
+            bumpScale: 0.03
+        });
+        const beakMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.45 });
+
+        const bodyPts = [
+            [0, 1.3, -1.1, 0.08, 0.08],
+            [0, 1.45, -0.2, 0.52, 0.62],
+            [0, 1.65, 0.5, 0.38, 0.42],
+            [0, 2.35, 0.75, 0.18, 0.20],
+            [0, 2.65, 0.95, 0.24, 0.26]
+        ];
+        group.add(createOrganicSplineMesh(bodyPts, 22, 40, featherMat));
+
+        const beakPts = [
+            [0, 2.65, 1.05, 0.16, 0.22],
+            [0, 2.60, 1.55, 0.08, 0.14],
+            [0, 2.42, 1.72, 0.01, 0.02]
+        ];
+        group.add(createOrganicSplineMesh(beakPts, 14, 18, beakMat));
+
+        [-0.28, 0.28].forEach((lx, idx) => {
+            const legPivot = new THREE.Group();
+            legPivot.position.set(lx, 1.35, 0.0);
+            const lPts = [
+                [0, 0, 0, 0.22, 0.25],
+                [0, -0.7, -0.1, 0.10, 0.11],
+                [0, -1.35, 0.15, 0.12, 0.06]
+            ];
+            legPivot.add(createOrganicSplineMesh(lPts, 14, 18, beakMat));
+            group.add(legPivot);
+            group.userData.limbs.push({ pivot: legPivot, phase: idx * Math.PI });
+        });
+    }
+
+    return group;
+}
+
+function populateWildlifeAndInsects() {
+    // Plastic/procedural wildlife intentionally removed. Only loaded GLB wildlife is shown.
+}
+
+function initThreeScene() {
+    createBotanicalAndSurfaceTextures();
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x01040a);
+    scene.fog = new THREE.FogExp2(0x071018, 0.0048);
+    createNightSky();
+
+    // Crisp, natural 52-degree vertical FOV (Not zoomed-in, zero blur)
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 700);
+    camera.position.set(0, 1.7, 8);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.74;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+    clock = new THREE.Clock();
+
+    // Rich Emerald/Golden Canopy Hemisphere & Sun Lighting
+    hemiLight = new THREE.HemisphereLight(0x29445b, 0x020605, 0.28);
+    scene.add(hemiLight);
+
+    sunLight = new THREE.DirectionalLight(0x91afd0, 0.78);
+    sunLight.position.set(45, 75, -60);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 1;
+    sunLight.shadow.camera.far = 260;
+    const d = 90;
+    sunLight.shadow.camera.left = -d;
+    sunLight.shadow.camera.right = d;
+    sunLight.shadow.camera.top = d;
+    sunLight.shadow.camera.bottom = -d;
+    sunLight.shadow.bias = -0.00015;
+    sunLight.shadow.normalBias = 0.025;
+    sunLight.shadow.radius = 2.5;
+    scene.add(sunLight);
+
+    fillLight = new THREE.DirectionalLight(0x2d5365, 0.14);
+    fillLight.position.set(-42, 18, 28);
+    scene.add(fillLight);
+
+    // Undulating Rainforest Floor with natural root mounds & hollows
+    const groundGeo = new THREE.PlaneGeometry(1100, 1100, 160, 160);
+    groundGeo.rotateX(-Math.PI / 2);
+    const gPos = groundGeo.attributes.position;
+    for (let i = 0; i < gPos.count; i++) {
+        const gx = gPos.getX(i), gz = gPos.getZ(i);
+        // Keep river bed flat in Sanctuary
+        if (gz < -180 && Math.abs(gx - 4) < 12) continue;
+        const mound = Math.sin(gx * 0.08) * Math.cos(gz * 0.08) * 0.35 + Math.sin(gx * 0.25 + gz * 0.2) * 0.12;
+        gPos.setY(i, mound);
+    }
+    groundGeo.computeVertexNormals();
+
+    groundMaterial = new THREE.MeshStandardMaterial({
+        map: textures.groundTex,
+        bumpMap: textures.groundTex,
+        bumpScale: 0.06,
+        roughness: 0.92,
+        metalness: 0.0
+    });
+    const groundMesh = new THREE.Mesh(groundGeo, groundMaterial);
+    groundMesh.receiveShadow = true;
+    scene.add(groundMesh);
+    createRainPuddles();
+
+    // 1. Tropical Rainforest Downpour & Puddle Ripple Rings
+    const rainGeo = new THREE.BufferGeometry();
+        const rainCount = 2400;
+    const rainPos = new Float32Array(rainCount * 6);
+    for (let i = 0; i < rainCount * 6; i += 6) {
+        const rx = (Math.random() - 0.5) * 55;
+        const ry = Math.random() * 24;
+        const rz = (Math.random() - 0.5) * 55;
+        rainPos[i] = rx; rainPos[i+1] = ry; rainPos[i+2] = rz;
+        rainPos[i+3] = rx - 0.04; rainPos[i+4] = ry - 0.85; rainPos[i+5] = rz;
+    }
+    rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+    rainSystem = new THREE.LineSegments(
+        rainGeo,
+        new THREE.LineBasicMaterial({ color: 0xb8d2ce, transparent: true, opacity: 0.11 })
+    );
+    scene.add(rainSystem);
+
+    // Expanding 3D Water Splash Ripples on the Ground
+    const rippleGeo = new THREE.RingGeometry(0.08, 0.48, 20);
+    rippleGeo.rotateX(-Math.PI / 2);
+    for (let i = 0; i < 28; i++) {
+        const rMesh = new THREE.Mesh(
+            rippleGeo,
+            new THREE.MeshStandardMaterial({ color: 0x8faeaa, roughness: 0.98, transparent: true, opacity: 0, side: THREE.DoubleSide })
+        );
+        rMesh.position.y = 0.06;
+        scene.add(rMesh);
+        splashRipples.push({ mesh: rMesh, active: false, age: 0, maxAge: 0.65 });
+    }
+
+    // 2. WANDERLVST Shimmering Floating Bioluminescent Pollen / Spores
+    const sporeGeo = new THREE.BufferGeometry();
+    const sporeCount = 600;
+    const sporePos = new Float32Array(sporeCount * 3);
+    for (let i = 0; i < sporeCount * 3; i += 3) {
+        sporePos[i] = (Math.random() - 0.5) * 160;
+        sporePos[i+1] = 0.3 + Math.random() * 10.0;
+        sporePos[i+2] = -Math.random() * 290 + 15;
+    }
+    sporeGeo.setAttribute('position', new THREE.BufferAttribute(sporePos, 3));
+    sporeSystem = new THREE.Points(
+        sporeGeo,
+        new THREE.PointsMaterial({ color: 0xb5c9a4, size: 0.08, transparent: true, opacity: 0.26, depthWrite: false })
+    );
+    scene.add(sporeSystem);
+
+    proceduralVegetationGroup = new THREE.Group();
+    proceduralVegetationGroup.name = 'Procedural_Vegetation_Fallback';
+    scene.add(proceduralVegetationGroup);
+    populateWANDERLVSTRainforest();
+    buildSanctuaryParadiseValley();
+    populateWildlifeAndInsects();
+    buildFirstPersonHands();
+    loadRealWorldAssets();
+
+    // Crisp Post-Processing Pipeline (Subtle Sunbeam Bloom ONLY — No Bokeh Blur!)
+    composer = new THREE.EffectComposer(renderer);
+    composer.addPass(new THREE.RenderPass(scene, camera));
+    const bloomPass = new THREE.UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        0.08,
+        0.22,
+        0.96
+    );
+    composer.addPass(bloomPass);
+
+    filmGradePass = new THREE.ShaderPass({
+        uniforms: {
+            tDiffuse: { value: null },
+            uTime: { value: 0 }
+        },
+        vertexShader: `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform sampler2D tDiffuse;
+            uniform float uTime;
+            varying vec2 vUv;
+            void main() {
+                vec3 color = texture2D(tDiffuse, vUv).rgb;
+                float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+                color = mix(vec3(luminance), color, 0.88);
+                color = mix(color, color * vec3(1.04, 1.0, 0.96), smoothstep(0.25, 0.95, luminance) * 0.45);
+                float distanceFromCenter = distance(vUv, vec2(0.5));
+                color *= 1.0 - smoothstep(0.34, 0.78, distanceFromCenter) * 0.18;
+                float grain = fract(sin(dot(vUv * vec2(127.1, 311.7) + uTime, vec2(269.5, 183.3))) * 43758.5453) - 0.5;
+                color += grain * 0.009;
+                gl_FragColor = vec4(max(color, 0.0), 1.0);
+            }
+        `
+    });
+    composer.addPass(filmGradePass);
+
+    window.addEventListener('resize', onWindowResize);
+}
+
+const keys = { w: false, a: false, s: false, d: false };
+let joystickVector = { x: 0, y: 0 };
+let isPointerDown = false;
+let prevPointer = { x: 0, y: 0 };
+
+function updateRunButtonUI() {
+    const runBtn = document.getElementById('run-toggle-btn');
+    if (GAME_STATE.sprint) {
+        runBtn.textContent = "RUN: ON";
+        runBtn.classList.add('active');
+    } else {
+        runBtn.textContent = "RUN: OFF";
+        runBtn.classList.remove('active');
+    }
+}
+
+function updateInteractiveProximity() {
+    if (!camera) return null;
+    const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
+    let nearest = null;
+    let nearestScore = Infinity;
+    interactiveObjects.forEach((entry) => {
+        if (!entry.object || !entry.object.visible) return;
+        const dx = entry.position.x - camera.position.x;
+        const dz = entry.position.z - camera.position.z;
+        const distance = Math.hypot(dx, dz);
+        if (distance > entry.radius + 2.8 || distance < 0.001) return;
+        const direction = new THREE.Vector3(dx / distance, 0, dz / distance);
+        const facing = forward.dot(direction);
+        if (facing < -0.1) return;
+        const score = distance - facing * 1.25;
+        if (score < nearestScore) {
+            nearestScore = score;
+            nearest = { entry, distance, facing };
+        }
+    });
+    GAME_STATE.touchTarget = nearest;
+    return nearest;
+}
+
+function resolveWorldCollision(nextPosition) {
+    let blocked = false;
+    interactiveObjects.forEach((entry) => {
+        if (!entry.object || !entry.object.visible) return;
+        const dx = nextPosition.x - entry.position.x;
+        const dz = nextPosition.z - entry.position.z;
+        const distance = Math.hypot(dx, dz);
+        const minimum = entry.radius + 0.72;
+        if (distance >= minimum || distance < 0.001) return;
+        const invDistance = 1 / distance;
+        nextPosition.x = entry.position.x + dx * invDistance * minimum;
+        nextPosition.z = entry.position.z + dz * invDistance * minimum;
+        blocked = true;
+    });
+    GAME_STATE.isTrapped = blocked && !!GAME_STATE.touchTarget;
+    return blocked;
+}
+
+function touchNearbyObject() {
+    const target = updateInteractiveProximity();
+    if (!target) return;
+    GAME_STATE.touchPulse = 1.0;
+    const now = clock ? clock.getElapsedTime() : 0;
+    if (now - target.entry.touchedAt < 0.45) return;
+    target.entry.touchedAt = now;
+    if (target.entry.object.userData && target.entry.object.userData.assetType) {
+        const rustle = target.entry.object.userData.assetType === 'TREE' ? 0.12 : 0.22;
+        target.entry.object.rotation.z = rustle;
+        setTimeout(() => {
+            if (target.entry.object) target.entry.object.rotation.z = 0;
+        }, 260);
+    }
+}
+
+function updateFearAtmosphere(dt, elapsed) {
+    let threat = 0;
+    HAZARD_ZONES.forEach((hazard) => {
+        const distance = Math.hypot(camera.position.x - hazard.x, camera.position.z - hazard.z);
+        threat = Math.max(threat, THREE.MathUtils.clamp(1 - distance / 42, 0, 1));
+    });
+    audioWildlife.forEach((event) => {
+        const distance = Math.hypot(camera.position.x - event.position.x, camera.position.z - event.position.z);
+        threat = Math.max(threat, THREE.MathUtils.clamp(1 - distance / event.radius, 0, 1) * (event.type === 'wolf' ? 0.85 : 0.18));
+        event.cooldown = Math.max(0, event.cooldown - dt);
+    });
+    if (GAME_STATE.touchTarget) threat = Math.max(threat, GAME_STATE.touchTarget.facing * 0.22);
+    if (GAME_STATE.isTrapped) threat = Math.max(threat, 0.72);
+    const targetFear = THREE.MathUtils.clamp(threat * 0.8 + (GAME_STATE.fatigue * 0.2), 0, 1);
+    GAME_STATE.fear = THREE.MathUtils.lerp(GAME_STATE.fear, targetFear, dt * 1.8);
+    GAME_STATE.touchPulse = Math.max(0, GAME_STATE.touchPulse - dt * 2.8);
+
+    if (scene && scene.fog) {
+        scene.fog.density = 0.0052 + GAME_STATE.fear * 0.0035 + (GAME_STATE.isTrapped ? 0.0015 : 0);
+    }
+    const vignette = document.getElementById('vignette');
+    if (vignette && GAME_STATE.started) {
+        const red = Math.round(12 + GAME_STATE.fear * 115);
+        const alpha = (0.46 + GAME_STATE.fear * 0.34).toFixed(2);
+        vignette.style.background = `radial-gradient(circle at center, transparent 48%, rgba(${red}, 13, 9, ${alpha}) 86%, rgba(0, 0, 0, 0.94) 100%)`;
+    }
+    if (camera && GAME_STATE.phase !== 'ENDING_SEQUENCE') {
+        camera.rotation.z = Math.sin(elapsed * (8 + GAME_STATE.fear * 8)) * GAME_STATE.fear * 0.012;
+    }
+}
+
+function triggerWildlifeAudio() {
+    if (!audioEngine.initialized || !camera) return;
+    const candidates = audioWildlife
+        .map((event) => ({ event, distance: Math.hypot(camera.position.x - event.position.x, camera.position.z - event.position.z) }))
+        .filter(({ event, distance }) => distance < event.radius && event.cooldown <= 0);
+    if (!candidates.length) return;
+    candidates.sort((a, b) => a.distance - b.distance);
+    const chosen = candidates[0];
+    if (chosen.event.type === 'wolf') {
+        audioEngine.playWolfCall(chosen.distance, GAME_STATE.fear);
+        chosen.event.cooldown = 10 + Math.random() * 8;
+    } else {
+        audioEngine.playSquirrelChatter(chosen.distance, GAME_STATE.fear);
+        chosen.event.cooldown = 7 + Math.random() * 6;
+    }
+}
+
+function setupInputControls() {
+    window.addEventListener('keydown', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'w' || e.key === 'ArrowUp') keys.w = true;
+        if (k === 's' || e.key === 'ArrowDown') keys.s = true;
+        if (k === 'a' || e.key === 'ArrowLeft') keys.a = true;
+        if (k === 'd' || e.key === 'ArrowRight') keys.d = true;
+        if (e.key === 'Shift') {
+            GAME_STATE.sprint = true;
+            updateRunButtonUI();
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'w' || e.key === 'ArrowUp') keys.w = false;
+        if (k === 's' || e.key === 'ArrowDown') keys.s = false;
+        if (k === 'a' || e.key === 'ArrowLeft') keys.a = false;
+        if (k === 'd' || e.key === 'ArrowRight') keys.d = false;
+        if (e.key === 'Shift') {
+            GAME_STATE.sprint = false;
+            updateRunButtonUI();
+        }
+    });
+
+    const runBtn = document.getElementById('run-toggle-btn');
+    runBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        GAME_STATE.sprint = !GAME_STATE.sprint;
+        updateRunButtonUI();
+    });
+
+    const canvasEl = renderer.domElement;
+    canvasEl.addEventListener('mousedown', (e) => {
+        isPointerDown = true;
+        prevPointer = { x: e.clientX, y: e.clientY };
+        touchNearbyObject();
+    });
+    window.addEventListener('mouseup', () => { isPointerDown = false; });
+    window.addEventListener('mousemove', (e) => {
+        if (!isPointerDown || !GAME_STATE.started) return;
+        GAME_STATE.cameraYaw -= (e.clientX - prevPointer.x) * 0.0038;
+        GAME_STATE.cameraPitch = Math.max(-0.65, Math.min(0.65, GAME_STATE.cameraPitch - (e.clientY - prevPointer.y) * 0.0038));
+        prevPointer = { x: e.clientX, y: e.clientY };
+    });
+
+    let moveTouchId = null, moveOrigin = { x: 0, y: 0 };
+    let lookTouchId = null, lastLook = { x: 0, y: 0 };
+    const leftRing = document.getElementById('left-touch-ring');
+    const rightRing = document.getElementById('right-touch-ring');
+
+    canvasEl.addEventListener('touchstart', (e) => {
+        if (!GAME_STATE.started) return;
+        e.preventDefault();
+        touchNearbyObject();
+        for (let t of e.changedTouches) {
+            if (t.clientX < window.innerWidth * 0.5 && moveTouchId === null) {
+                moveTouchId = t.identifier;
+                moveOrigin = { x: t.clientX, y: t.clientY };
+                leftRing.style.left = `${t.clientX}px`;
+                leftRing.style.top = `${t.clientY}px`;
+                leftRing.classList.remove('opacity-0');
+            } else if (lookTouchId === null) {
+                lookTouchId = t.identifier;
+                lastLook = { x: t.clientX, y: t.clientY };
+                rightRing.style.left = `${t.clientX}px`;
+                rightRing.style.top = `${t.clientY}px`;
+                rightRing.classList.remove('opacity-0');
+            }
+        }
+    }, { passive: false });
+
+    canvasEl.addEventListener('touchmove', (e) => {
+        if (!GAME_STATE.started) return;
+        e.preventDefault();
+        for (let t of e.changedTouches) {
+            if (t.identifier === moveTouchId) {
+                joystickVector.x = Math.max(-1, Math.min(1, (t.clientX - moveOrigin.x) / 50));
+                joystickVector.y = Math.max(-1, Math.min(1, (t.clientY - moveOrigin.y) / 50));
+                if ((t.clientY - moveOrigin.y) < -68) {
+                    GAME_STATE.sprint = true;
+                    updateRunButtonUI();
+                }
+                leftRing.style.left = `${t.clientX}px`;
+                leftRing.style.top = `${t.clientY}px`;
+            } else if (t.identifier === lookTouchId) {
+                GAME_STATE.cameraYaw -= (t.clientX - lastLook.x) * 0.0048;
+                GAME_STATE.cameraPitch = Math.max(-0.65, Math.min(0.65, GAME_STATE.cameraPitch - (t.clientY - lastLook.y) * 0.0048));
+                lastLook = { x: t.clientX, y: t.clientY };
+                rightRing.style.left = `${t.clientX}px`;
+                rightRing.style.top = `${t.clientY}px`;
+            }
+        }
+    }, { passive: false });
+
+    const endTouches = (e) => {
+        for (let t of e.changedTouches) {
+            if (t.identifier === moveTouchId) {
+                moveTouchId = null;
+                joystickVector = { x: 0, y: 0 };
+                leftRing.classList.add('opacity-0');
+            }
+            if (t.identifier === lookTouchId) {
+                lookTouchId = null;
+                rightRing.classList.add('opacity-0');
+            }
+        }
+    };
+    canvasEl.addEventListener('touchend', endTouches);
+    canvasEl.addEventListener('touchcancel', endTouches);
+}
+
+function spawnFootstepRipple(x, z) {
+    const ripple = splashRipples.find(r => !r.active);
+    if (!ripple) return;
+    ripple.active = true;
+    ripple.age = 0;
+    ripple.mesh.position.set(x, terrainHeightAt(x, z) + 0.045, z);
+    ripple.mesh.scale.set(0.25, 0.25, 0.25);
+    ripple.mesh.material.opacity = 0.28;
+}
+
+function createRainPuddles() {
+    const puddleGeo = new THREE.CircleGeometry(1, 32);
+    puddleGeo.rotateX(-Math.PI / 2);
+    for (let i = 0; i < 34; i++) {
+        const angle = i * 2.39996;
+        const distance = 7 + (i % 13) * 8.2;
+        const x = Math.sin(angle) * distance * 2.4;
+        const z = 4 - (i % 29) * 10.4 - Math.cos(angle * 0.6) * 18;
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x203c39,
+            roughness: 0.22,
+            metalness: 0.0,
+            transparent: true,
+            opacity: 0.18 + (i % 4) * 0.025,
+            depthWrite: false
+        });
+        const puddle = new THREE.Mesh(puddleGeo, material);
+        puddle.position.set(x, terrainHeightAt(x, z) + 0.018, z);
+        puddle.scale.set(0.8 + (i % 5) * 0.24, 1, 0.45 + (i % 4) * 0.18);
+        puddle.rotation.y = angle;
+        puddle.receiveShadow = true;
+        scene.add(puddle);
+        puddleMeshes.push({ mesh: puddle, baseOpacity: material.opacity, phase: angle });
+    }
+}
+
+function triggerHazardOutcome(hazard) {
+    GAME_STATE.currentOutcome = hazard;
+    GAME_STATE.phase = 'ENDING_SEQUENCE';
+    GAME_STATE.endingTimer = 0;
+    document.getElementById('vignette').classList.add('danger-pulse');
+
+    if (hazard.outcomeType === 'PREDATOR_AMBUSH' || hazard.outcomeType === 'TERROR_PACK') {
+        const predator = prehistoricAnimals.find(a => a.type === 'AMBUSH_PREDATOR');
+        if (predator) {
+            predator.mesh.visible = true;
+            const forward = new THREE.Vector3(-Math.sin(GAME_STATE.cameraYaw), 0, -Math.cos(GAME_STATE.cameraYaw));
+            predator.mesh.position.copy(camera.position).addScaledVector(forward, 5.5);
+            predator.mesh.position.y = 0;
+            predator.mesh.lookAt(camera.position.x, 1.2, camera.position.z);
+        }
+    }
+
+    audioEngine.playAttackAndScream(GAME_STATE.gender, hazard.outcomeType);
+}
+
+function showFinalEndingModal() {
+    GAME_STATE.phase = 'ENDED';
+    const outcome = GAME_STATE.currentOutcome;
+    document.getElementById('ending-title').textContent = outcome.title;
+    document.getElementById('ending-desc').textContent = outcome.desc;
+    document.getElementById('ending-modal').classList.remove('hidden');
+}
+
+function animateLoop() {
+    requestAnimationFrame(animateLoop);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    const elapsed = clock.getElapsedTime();
+
+    // Update wind-animated foliage & water shaders
+    for (let i = 0; i < windMaterials.length; i++) {
+        windMaterials[i].uniforms.uTime.value = elapsed;
+    }
+    for (let i = 0; i < volumetricRays.length; i++) {
+        volumetricRays[i].material.uniforms.uTime.value = elapsed;
+    }
+    if (filmGradePass) filmGradePass.uniforms.uTime.value = elapsed;
+    if (riverShaderMat) riverShaderMat.uniforms.uTime.value = elapsed;
+    if (waterfallShaderMat) waterfallShaderMat.uniforms.uTime.value = elapsed;
+    if (starField) {
+        starField.rotation.y = elapsed * 0.0015;
+        starField.material.opacity = 0.68 + Math.sin(elapsed * 0.22) * 0.06;
+    }
+
+    // Update Tropical Rain & Puddle Splash Ripples
+    if (rainSystem) {
+        rainSystem.visible = GAME_STATE.rainIntensity > 0.05;
+        const rPos = rainSystem.geometry.attributes.position.array;
+        for (let i = 0; i < rPos.length; i += 6) {
+            rPos[i+1] -= 28.0 * dt;
+            rPos[i+4] -= 28.0 * dt;
+            if (rPos[i+1] < 0) {
+                const nx = camera.position.x + (Math.random() - 0.5) * 55;
+                const nz = camera.position.z + (Math.random() - 0.5) * 55;
+                rPos[i] = nx; rPos[i+1] = 24.0; rPos[i+2] = nz;
+                rPos[i+3] = nx - 0.04; rPos[i+4] = 23.15; rPos[i+5] = nz;
+
+                if (GAME_STATE.rainIntensity > 0.2 && Math.random() < 0.03) {
+                    spawnFootstepRipple(nx, nz);
+                }
+            }
+        }
+        rainSystem.geometry.attributes.position.needsUpdate = true;
+    }
+
+    splashRipples.forEach(r => {
+        if (!r.active) return;
+        r.age += dt;
+        const p = r.age / r.maxAge;
+        if (p >= 1.0) {
+            r.active = false;
+            r.mesh.material.opacity = 0;
+        } else {
+            const s = 0.25 + p * 2.6;
+            r.mesh.scale.set(s, s, s);
+            r.mesh.material.opacity = (1.0 - p) * 0.55;
+        }
+    });
+    puddleMeshes.forEach((puddle) => {
+        puddle.mesh.material.opacity = puddle.baseOpacity + Math.sin(elapsed * 0.7 + puddle.phase) * 0.018;
+    });
+
+    // Update Shimmering Spores
+    if (sporeSystem) {
+        const sPos = sporeSystem.geometry.attributes.position.array;
+        for (let i = 1; i < sPos.length; i += 3) {
+            sPos[i] += Math.sin(elapsed * 1.2 + i) * 0.005;
+        }
+        sporeSystem.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // Update Articulated 2-Wing Butterflies & Hopping Dart Frogs
+    butterflies.forEach(b => {
+        const flap = Math.sin(elapsed * 16.0 + b.phase) * 0.85;
+        b.leftWing.rotation.y = flap;
+        b.rightWing.rotation.y = -flap;
+        b.group.position.x = b.baseX + Math.sin(elapsed * b.speed + b.phase) * 2.2;
+        b.group.position.y = b.baseY + Math.cos(elapsed * (b.speed * 1.3) + b.phase) * 0.55;
+        b.group.position.z = b.baseZ + Math.cos(elapsed * b.speed + b.phase) * 2.2;
+        b.group.rotation.y = elapsed * b.speed + b.phase;
+    });
+
+    dartFrogs.forEach(f => {
+        const hopCycle = (elapsed * 1.8 + f.phase) % 4.0;
+        if (hopCycle < 0.45) {
+            const h = Math.sin((hopCycle / 0.45) * Math.PI);
+            f.mesh.position.y = 0.02 + h * 0.32;
+            f.mesh.translateZ(dt * 1.8);
+        } else {
+            f.mesh.position.y = 0.02;
+        }
+    });
+
+    // Update Prehistoric Megafauna Kinematics
+    prehistoricAnimals.forEach(animal => {
+        const limbs = animal.mesh.userData.limbs || [];
+        if (animal.type === 'ROAM_SAUROPOD') {
+            animal.mesh.position.x += animal.speed * dt * animal.dir;
+            limbs.forEach(l => {
+                l.pivot.rotation.x = Math.sin(elapsed * 2.2 + l.phase) * 0.26;
+            });
+            if (animal.mesh.position.x > animal.maxX) {
+                animal.dir = -1;
+                animal.mesh.rotation.y = -Math.PI * 0.5;
+            } else if (animal.mesh.position.x < animal.minX) {
+                animal.dir = 1;
+                animal.mesh.rotation.y = Math.PI * 0.5;
+            }
+        } else if (animal.type === 'SURPRISE_BIRD' && animal.active) {
+            animal.mesh.position.x += animal.speed * dt;
+            limbs.forEach(l => {
+                l.pivot.rotation.x = Math.sin(elapsed * 14.0 + l.phase) * 0.65;
+            });
+            if (animal.mesh.position.x > 65) animal.active = false;
+        }
+    });
+    realWildlifeMixers.forEach((mixer) => mixer.update(dt));
+    realWildlifeActors.forEach((actor) => {
+        if (actor.type === 'wolf') {
+            actor.object.position.x = actor.base.x + Math.sin(elapsed * 0.16 + actor.phase) * 5.5;
+            actor.object.position.z = actor.base.z + Math.cos(elapsed * 0.13 + actor.phase) * 3.2;
+            actor.object.rotation.y = Math.sin(elapsed * 0.16 + actor.phase) > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+        } else {
+            actor.object.position.x = actor.base.x + Math.sin(elapsed * 0.52 + actor.phase) * 1.4;
+            actor.object.position.y = actor.base.y + Math.abs(Math.sin(elapsed * 2.1 + actor.phase)) * 0.14;
+            actor.object.rotation.y = elapsed * 0.52 + actor.phase;
+        }
+    });
+    realVegetationActors.forEach((actor) => {
+        const dx = actor.x - camera.position.x;
+        const dz = actor.z - camera.position.z;
+        actor.object.visible = (dx * dx + dz * dz) < 230 * 230;
+    });
+
+    if (!GAME_STATE.started) {
+        camera.position.x = Math.sin(elapsed * 0.25) * 0.6;
+        camera.lookAt(0, 1.8, -18);
+        composer.render();
+        return;
+    }
+
+    // Active First-Person Free-Roam Exploration
+    if (GAME_STATE.phase === 'WALKING' || GAME_STATE.phase === 'SANCTUARY_FREEROAM') {
+        let moveForward = (keys.w ? 1 : 0) - (keys.s ? 1 : 0) - joystickVector.y;
+        let moveTurn = (keys.d ? 1 : 0) - (keys.a ? 1 : 0) + joystickVector.x;
+        moveForward = Math.max(-1, Math.min(1, moveForward));
+        moveTurn = Math.max(-1, Math.min(1, moveTurn));
+
+        if (Math.abs(moveTurn) > 0.04) {
+            GAME_STATE.cameraYaw -= moveTurn * 1.45 * dt;
+        }
+
+        const isMoving = Math.abs(moveForward) > 0.05 || Math.abs(moveTurn) > 0.08;
+        updateInteractiveProximity();
+
+        // Fatigue & Stamina calculation
+        const fatigueDelta = isMoving ? (GAME_STATE.sprint ? 0.11 : 0.025) : -0.16;
+        GAME_STATE.fatigue = Math.min(1.0, Math.max(0.0, GAME_STATE.fatigue + fatigueDelta * dt));
+
+        // Distinct grounded walk/run speeds with acceleration instead of a gamey instant jump.
+        const targetSpeed = GAME_STATE.sprint ? 25.5 : 8.8;
+        const speedScale = 1.0 - GAME_STATE.fatigue * 0.15 - GAME_STATE.fear * 0.08;
+        GAME_STATE.moveVelocity = THREE.MathUtils.lerp(GAME_STATE.moveVelocity, isMoving ? targetSpeed * speedScale : 0, dt * (GAME_STATE.sprint ? 8 : 6));
+        const moveSpeed = GAME_STATE.moveVelocity;
+
+        if (isMoving) {
+            const forward = new THREE.Vector3(-Math.sin(GAME_STATE.cameraYaw), 0, -Math.cos(GAME_STATE.cameraYaw));
+            const right = new THREE.Vector3(Math.cos(GAME_STATE.cameraYaw), 0, -Math.sin(GAME_STATE.cameraYaw));
+            const nextPosition = camera.position.clone();
+            nextPosition.addScaledVector(forward, moveForward * moveSpeed * dt);
+            nextPosition.addScaledVector(right, moveTurn * moveSpeed * 0.65 * dt);
+            resolveWorldCollision(nextPosition);
+            camera.position.copy(nextPosition);
+
+            // Wide-open bounds so player is never trapped
+            camera.position.x = Math.max(-280, Math.min(280, camera.position.x));
+            camera.position.z = Math.max(-520, Math.min(22, camera.position.z));
+
+            const bobFreq = GAME_STATE.sprint ? 15.0 : 9.5;
+            GAME_STATE.bobTimer += dt * bobFreq;
+            camera.position.y = terrainHeightAt(camera.position.x, camera.position.z) + 1.7 + Math.sin(GAME_STATE.bobTimer) * (GAME_STATE.sprint ? 0.09 : 0.045);
+
+            // Natural First-Person Arm Swing & Finger Flexing Kinematics
+            if (leftHandGroup && rightHandGroup) {
+                const swing = Math.sin(GAME_STATE.bobTimer * 0.5);
+                const pump = Math.abs(Math.cos(GAME_STATE.bobTimer * 0.5));
+                const reach = GAME_STATE.touchTarget ? GAME_STATE.touchPulse * 0.12 : 0;
+                leftHandGroup.position.z = -0.48 + swing * (GAME_STATE.sprint ? 0.13 : 0.065) - reach;
+                leftHandGroup.position.y = -0.23 + pump * (GAME_STATE.sprint ? 0.075 : 0.03) + reach * 0.45;
+                rightHandGroup.position.z = -0.48 - swing * (GAME_STATE.sprint ? 0.13 : 0.065) - reach * 0.4;
+                rightHandGroup.position.y = -0.23 + pump * (GAME_STATE.sprint ? 0.075 : 0.03) + reach * 0.2;
+                leftHandGroup.rotation.x = 0.22 + Math.sin(GAME_STATE.bobTimer) * (GAME_STATE.sprint ? 0.1 : 0.045) - reach * 0.45;
+                rightHandGroup.rotation.x = 0.22 - Math.sin(GAME_STATE.bobTimer) * (GAME_STATE.sprint ? 0.1 : 0.045) - reach * 0.2;
+                leftHandGroup.rotation.z = -0.08 + swing * 0.06;
+                rightHandGroup.rotation.z = 0.08 + swing * 0.06;
+            }
+
+            // Footstep Audio & Puddle Splash Sync
+            GAME_STATE.stepAccum += dt * (GAME_STATE.sprint ? 4.3 : 2.1);
+            if (GAME_STATE.stepAccum >= 1) {
+                GAME_STATE.stepAccum -= 1;
+                if (!GAME_STATE.isTrapped) {
+                    audioEngine.playFootstep(GAME_STATE.sprint);
+                    spawnFootstepRipple(camera.position.x, camera.position.z);
+                }
+            }
+        } else {
+            camera.position.y = THREE.MathUtils.lerp(camera.position.y, terrainHeightAt(camera.position.x, camera.position.z) + 1.7 + Math.sin(elapsed * 2.2) * 0.015, dt * 5);
+            if (leftHandGroup && rightHandGroup) {
+                const reach = GAME_STATE.touchTarget ? GAME_STATE.touchPulse * 0.12 : 0;
+                leftHandGroup.position.y = THREE.MathUtils.lerp(leftHandGroup.position.y, -0.23 + Math.sin(elapsed * 2.2) * 0.008 + reach * 0.4, dt * 4);
+                rightHandGroup.position.y = THREE.MathUtils.lerp(rightHandGroup.position.y, -0.23 + Math.cos(elapsed * 2.2) * 0.008 + reach * 0.2, dt * 4);
+                leftHandGroup.position.z = THREE.MathUtils.lerp(leftHandGroup.position.z, -0.48 - reach, dt * 4);
+                rightHandGroup.position.z = THREE.MathUtils.lerp(rightHandGroup.position.z, -0.48 - reach * 0.4, dt * 4);
+                leftHandGroup.rotation.x = THREE.MathUtils.lerp(leftHandGroup.rotation.x, 0.22 - reach * 0.45, dt * 4);
+                rightHandGroup.rotation.x = THREE.MathUtils.lerp(rightHandGroup.rotation.x, 0.22 - reach * 0.2, dt * 4);
+                leftHandGroup.rotation.z = THREE.MathUtils.lerp(leftHandGroup.rotation.z, -0.08, dt * 4);
+                rightHandGroup.rotation.z = THREE.MathUtils.lerp(rightHandGroup.rotation.z, 0.08, dt * 4);
+            }
+        }
+
+        // Subtle live finger articulation
+        const allFingers = leftFingers.concat(rightFingers);
+        for (let i = 0; i < allFingers.length; i++) {
+            const f = allFingers[i];
+            f.group.rotation.x = f.baseCurl + Math.sin(elapsed * 2.4 + f.phase) * 0.06 + (GAME_STATE.sprint ? 0.14 : 0) + (GAME_STATE.touchTarget ? GAME_STATE.touchPulse * 0.18 : 0);
+        }
+
+        // Dynamic Tired Breathing Audio
+        const breathingActive = isMoving || GAME_STATE.fear > 0.42;
+        if (breathingActive) {
+            GAME_STATE.breathTimer -= dt * (0.65 + GAME_STATE.fatigue * 0.9 + GAME_STATE.fear * 0.6);
+            if (GAME_STATE.breathTimer <= 0) {
+                audioEngine.playBreathing(GAME_STATE.gender, GAME_STATE.fatigue);
+                GAME_STATE.breathTimer = Math.max(2.0, 3.2 - GAME_STATE.fatigue * 0.7 - GAME_STATE.fear * 0.5);
+            }
+        } else {
+            GAME_STATE.breathTimer = Math.max(GAME_STATE.breathTimer, 1.1);
+        }
+
+        // Nocturnal & Distant Prehistoric Calls
+        GAME_STATE.ambientTimer -= dt;
+        if (GAME_STATE.ambientTimer <= 0) {
+            if (isMoving || GAME_STATE.fear > 0.55) triggerWildlifeAudio();
+            GAME_STATE.ambientTimer = 3.8 + Math.random() * 4.2;
+        }
+
+        // Surprise Mid-Jungle Terror Bird Sprint Encounter
+        if (!GAME_STATE.surpriseTriggered && camera.position.z < -48) {
+            GAME_STATE.surpriseTriggered = true;
+            const bird = prehistoricAnimals.find(a => a.type === 'SURPRISE_BIRD');
+            if (bird) {
+                bird.active = true;
+                bird.mesh.position.set(camera.position.x - 28, 0, camera.position.z - 18);
+                audioEngine.playNightJungleCall('close');
+            }
+        }
+
+        // Save periodic safe checkpoint
+        if (camera.position.z > -115) {
+            GAME_STATE.checkpointPos.x = camera.position.x;
+            GAME_STATE.checkpointPos.z = camera.position.z;
+        }
+
+        // Check Unmarked Natural Hazard Zones
+        if (GAME_STATE.phase === 'WALKING') {
+            for (let h of HAZARD_ZONES) {
+                const dist = Math.hypot(camera.position.x - h.x, camera.position.z - h.z);
+                if (dist < h.radius) {
+                    triggerHazardOutcome(h);
+                    break;
+                }
+            }
+
+            // Seamless entry into the Winning Sanctuary of Golden Falls (No Pop-up UI!)
+            if (camera.position.z < -188) {
+                GAME_STATE.phase = 'SANCTUARY_FREEROAM';
+                GAME_STATE.rainIntensity = 0.62;
+                audioEngine.setRainVolume(0.38);
+                scene.fog.color.setHex(0x0b1b25);
+                scene.fog.density = 0.0038;
+                sunLight.color.setHex(0x9ab6d6);
+                sunLight.intensity = 0.86;
+                hemiLight.intensity = 0.32;
+                audioEngine.playNightJungleCall('close');
+            }
+        }
+
+        camera.rotation.order = 'YXZ';
+        camera.rotation.y = GAME_STATE.cameraYaw;
+        camera.rotation.x = GAME_STATE.cameraPitch;
+    }
+
+    // Dramatic Predator / Trap Camera Sequence
+    if (GAME_STATE.phase === 'ENDING_SEQUENCE') {
+        GAME_STATE.endingTimer += dt;
+        const predator = prehistoricAnimals.find(a => a.type === 'AMBUSH_PREDATOR');
+        if (predator && predator.mesh.visible) {
+            predator.mesh.position.lerp(new THREE.Vector3(camera.position.x, 0, camera.position.z), dt * 3.8);
+        }
+        camera.position.y = Math.max(0.35, camera.position.y - 2.2 * dt);
+        camera.rotation.z = Math.sin(GAME_STATE.endingTimer * 14.0) * 0.18;
+        if (GAME_STATE.endingTimer > 2.4) {
+            showFinalEndingModal();
+        }
+    }
+
+    if (GAME_STATE.started) updateFearAtmosphere(dt, elapsed);
+
+    composer.render();
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+}
+
+window.onload = function () {
+    initThreeScene();
+    setupInputControls();
+    animateLoop();
+
+    const selectMaleBtn = document.getElementById('select-male');
+    const selectFemaleBtn = document.getElementById('select-female');
+    const runToggleBtn = document.getElementById('run-toggle-btn');
+
+    selectMaleBtn.addEventListener('click', () => {
+        GAME_STATE.gender = 'male';
+        selectMaleBtn.classList.add('active');
+        selectFemaleBtn.classList.remove('active');
+        buildFirstPersonHands();
+    });
+
+    selectFemaleBtn.addEventListener('click', () => {
+        GAME_STATE.gender = 'female';
+        selectFemaleBtn.classList.add('active');
+        selectMaleBtn.classList.remove('active');
+        buildFirstPersonHands();
+    });
+
+    document.getElementById('begin-btn').addEventListener('click', async () => {
+        if (!GAME_STATE.assetsReady) return;
+        await audioEngine.init();
+        GAME_STATE.started = true;
+        document.getElementById('start-modal').classList.add('hidden');
+        runToggleBtn.classList.remove('hidden');
+    });
+
+    document.getElementById('retry-fork-btn').addEventListener('click', () => {
+        document.getElementById('vignette').classList.remove('danger-pulse');
+        const predator = prehistoricAnimals.find(a => a.type === 'AMBUSH_PREDATOR');
+        if (predator) predator.mesh.visible = false;
+        camera.position.set(GAME_STATE.checkpointPos.x, 1.7, GAME_STATE.checkpointPos.z);
+        camera.rotation.z = 0;
+        GAME_STATE.moveVelocity = 0;
+        GAME_STATE.fear = 0.15;
+        GAME_STATE.isTrapped = false;
+        GAME_STATE.touchTarget = null;
+        GAME_STATE.phase = 'WALKING';
+        document.getElementById('ending-modal').classList.add('hidden');
+    });
+
+    document.getElementById('restart-full-btn').addEventListener('click', () => {
+        document.getElementById('vignette').classList.remove('danger-pulse');
+        const predator = prehistoricAnimals.find(a => a.type === 'AMBUSH_PREDATOR');
+        if (predator) predator.mesh.visible = false;
+        camera.position.set(0, 1.7, 8);
+        camera.rotation.z = 0;
+        GAME_STATE.cameraYaw = 0;
+        GAME_STATE.cameraPitch = 0;
+        GAME_STATE.moveVelocity = 0;
+        GAME_STATE.fear = 0;
+        GAME_STATE.isTrapped = false;
+        GAME_STATE.touchTarget = null;
+        GAME_STATE.surpriseTriggered = false;
+        GAME_STATE.rainIntensity = 0.85;
+        scene.fog.color.setHex(0x071018);
+        scene.fog.density = 0.0048;
+        sunLight.color.setHex(0x91afd0);
+        sunLight.intensity = 0.78;
+        hemiLight.intensity = 0.28;
+        GAME_STATE.phase = 'WALKING';
+        document.getElementById('ending-modal').classList.add('hidden');
+    });
+};
+</script>
+</body>
+</html>
