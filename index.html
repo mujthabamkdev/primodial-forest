@@ -143,6 +143,8 @@
         #direction-pad .down { grid-column:2; grid-row:2; }
         #direction-pad .right { grid-column:3; grid-row:2; }
         #right-touch-ring { border-color:rgba(210,239,246,.62); background:radial-gradient(circle, rgba(142,204,217,.18), transparent 70%); box-shadow:0 0 24px rgba(142,204,217,.24); }
+        #fullscreen-btn { position:absolute; top:1rem; right:1rem; z-index:25; padding:.55rem .8rem; border:1px solid rgba(190,222,226,.42); border-radius:.5rem; background:rgba(3,14,18,.78); color:#c8e0e4; font:700 .62rem/1 Inter,sans-serif; letter-spacing:.16em; text-transform:uppercase; box-shadow:0 6px 16px rgba(0,0,0,.5); }
+        #fullscreen-btn:active { background:rgba(62,101,108,.82); }
     </style>
 </head>
 <body>
@@ -156,6 +158,7 @@
 
 <!-- Minimal Run Toggle Control -->
 <button id="run-toggle-btn" class="hidden">RUN: OFF</button>
+<button id="fullscreen-btn" class="hidden" type="button">FULLSCREEN</button>
 
 <div id="direction-pad" class="hidden" aria-label="Movement controls">
     <button class="up" data-key="w" aria-label="Move forward">▲</button>
@@ -226,7 +229,7 @@ const GAME_STATE = {
     bobTimer: 0,
     stepAccum: 0,
     breathTimer: 1.5,
-    ambientTimer: 2.5,
+    ambientTimer: 9.0,
     surpriseTriggered: false,
     endingTimer: 0,
     currentOutcome: null,
@@ -259,13 +262,11 @@ class JungleAudioEngine {
 
             this.wolfRecording = new Audio('assets/audio/wolf-howls.ogg');
             this.wolfRecording.preload = 'auto';
-            this.squirrelRecording = new Audio('assets/audio/jungle-palm-squirrel-sound.wav');
-            this.squirrelRecording.preload = 'auto';
 
             // Natural rainforest canopy rain + breeze
             this.rainNoise = new Tone.Noise("pink").start();
             this.rainFilter = new Tone.Filter({ type: "bandpass", frequency: 1050, Q: 0.7 });
-            this.rainGain = new Tone.Gain(0.055).toDestination();
+            this.rainGain = new Tone.Gain(0.019).toDestination();
             this.rainNoise.connect(this.rainFilter);
             this.rainFilter.connect(this.rainGain);
 
@@ -274,7 +275,7 @@ class JungleAudioEngine {
                 noise: { type: "brown" },
                 envelope: { attack: 0.004, decay: 0.11, sustain: 0 }
             }).toDestination();
-            this.stepSynth.volume.value = -25;
+            this.stepSynth.volume.value = -29;
 
             // Puddle water splash
             this.splashSynth = new Tone.NoiseSynth({
@@ -283,7 +284,7 @@ class JungleAudioEngine {
             });
             this.splashFilter = new Tone.Filter(1800, "bandpass").toDestination();
             this.splashSynth.connect(this.splashFilter);
-            this.splashSynth.volume.value = -28;
+            this.splashSynth.volume.value = -32;
 
             // Low, restrained death impact; avoid bright arcade-like tones.
             this.deathRumble = new Tone.MembraneSynth({
@@ -309,7 +310,7 @@ class JungleAudioEngine {
             this.breathSynth.connect(this.breathFilter);
             this.breathFilter.connect(this.breathGain);
 
-            // Dedicated animal cues: distant wolf howl and close squirrel chatter.
+            // Recorded wolf cue loaded above; no synthetic duplicate.
             this.wolfSynth = new Tone.FMSynth({
                 harmonicity: 0.5,
                 modulationIndex: 3.2,
@@ -321,14 +322,6 @@ class JungleAudioEngine {
             this.wolfSynth.connect(this.wolfFilter);
             this.wolfFilter.connect(this.wolfDelay);
             this.wolfSynth.volume.value = -19;
-
-            this.squirrelSynth = new Tone.Synth({
-                oscillator: { type: "triangle" },
-                envelope: { attack: 0.008, decay: 0.08, sustain: 0.04, release: 0.08 }
-            });
-            this.squirrelFilter = new Tone.Filter(2400, "bandpass").toDestination();
-            this.squirrelSynth.connect(this.squirrelFilter);
-            this.squirrelSynth.volume.value = -26;
 
             // Prehistoric animal vocalization & nocturnal bird/frog synth
             this.creatureSynth = new Tone.FMSynth({
@@ -353,15 +346,21 @@ class JungleAudioEngine {
 
     setRainVolume(level) {
         if (!this.initialized || !this.rainGain) return;
-        this.rainGain.gain.rampTo(0.055 * level, 1.5);
+        this.rainGain.gain.rampTo(0.019 * level, 1.5);
+    }
+
+    stopWildlifeRecordings() {
+        if (!this.wolfRecording) return;
+        this.wolfRecording.pause();
+        this.wolfRecording.currentTime = 0;
     }
 
     playFootstep(isSprint = false) {
         if (!this.initialized) return;
         try {
-            this.stepSynth.volume.value = isSprint ? -20 : -25;
+            this.stepSynth.volume.value = isSprint ? -30 : -35;
             this.stepSynth.triggerAttackRelease(isSprint ? 0.12 : 0.09);
-            this.splashSynth.volume.value = isSprint ? -27 : -31;
+            this.splashSynth.volume.value = isSprint ? -37 : -41;
             this.splashSynth.triggerAttackRelease(isSprint ? 0.08 : 0.055, "+0.03");
         } catch (e) {}
     }
@@ -369,10 +368,10 @@ class JungleAudioEngine {
     playWaterStep(isSprint = false, depth = 0.5) {
         if (!this.initialized) return;
         try {
-            this.stepSynth.volume.value = isSprint ? -25 : -29;
+            this.stepSynth.volume.value = isSprint ? -35 : -39;
             this.stepSynth.triggerAttackRelease(isSprint ? 0.14 : 0.11);
             this.splashFilter.frequency.rampTo(900 + depth * 900, 0.08);
-            this.splashSynth.volume.value = isSprint ? -20 : -24;
+            this.splashSynth.volume.value = isSprint ? -30 : -34;
             this.splashSynth.triggerAttackRelease(isSprint ? 0.22 : 0.17);
         } catch (e) {}
     }
@@ -395,48 +394,21 @@ class JungleAudioEngine {
         return;
     }
 
-    playWolfCall(distance = 80, fear = 0.0) {
-        if (!this.initialized || !this.wolfSynth) return;
+    playWolfCall(distance = 80, fear = 0.0, force = false, duration = 3.0) {
+        if (!this.initialized || !this.wolfRecording) return;
         try {
+            const now = performance.now();
+            if (!force && now - (this.lastWolfAt || -Infinity) < 10000) return;
+            this.lastWolfAt = now;
             const near = Math.max(0, Math.min(1, 1 - distance / 120));
-            if (this.wolfRecording) {
-                this.wolfRecording.pause();
-                this.wolfRecording.currentTime = 0;
-                this.wolfRecording.volume = Math.min(1, 0.018 + near * 0.11 + fear * 0.025);
-                this.wolfRecording.play().catch(() => {});
-            }
-            if (!this.wolfRecording) {
-                this.wolfSynth.volume.value = -29 + near * 8 + fear * 2;
-                this.wolfFilter.frequency.rampTo(420 + near * 520, 0.25);
-                this.wolfSynth.triggerAttackRelease(near > 0.65 ? "E2" : "C2", "1n");
-                setTimeout(() => {
-                    if (!this.initialized) return;
-                    this.wolfSynth.triggerAttackRelease(near > 0.65 ? "A1" : "G1", "1n");
-                }, 520);
-            }
-        } catch (e) {}
-    }
-
-    playSquirrelChatter(distance = 30, fear = 0.0) {
-        if (!this.initialized || !this.squirrelSynth) return;
-        try {
-            const near = Math.max(0, Math.min(1, 1 - distance / 55));
-            if (this.squirrelRecording) {
-                this.squirrelRecording.pause();
-                this.squirrelRecording.currentTime = 0;
-                this.squirrelRecording.volume = Math.min(1, 0.012 + near * 0.07);
-                this.squirrelRecording.play().catch(() => {});
-            }
-            if (!this.squirrelRecording) {
-                this.squirrelSynth.volume.value = -37 + near * 7 + fear * 1.5;
-                this.squirrelFilter.frequency.rampTo(1900 + near * 1800, 0.12);
-                const notes = ["A5", "C6", "E6", "B5"];
-                notes.forEach((note, i) => {
-                    setTimeout(() => {
-                        if (this.initialized) this.squirrelSynth.triggerAttackRelease(note, "32n");
-                    }, i * 95);
-                });
-            }
+            if (this.wolfStopTimer) clearTimeout(this.wolfStopTimer);
+            this.stopWildlifeRecordings();
+            this.wolfRecording.volume = Math.min(1, 0.018 + near * 0.11 + fear * 0.025);
+            this.wolfRecording.play().catch(() => {});
+            this.wolfStopTimer = setTimeout(() => {
+                this.stopWildlifeRecordings();
+                this.wolfStopTimer = null;
+            }, duration * 1000);
         } catch (e) {}
     }
 
@@ -445,7 +417,7 @@ class JungleAudioEngine {
         try {
             if (outcomeType === 'PREDATOR_AMBUSH' || outcomeType === 'TERROR_PACK') {
                 // Animal attack keeps animal texture front and centre; death impact follows quietly.
-                this.playWolfCall(12, 1.0);
+                this.playWolfCall(12, 1.0, true, 3.8);
                 setTimeout(() => this.playSeriousDeath(), 420);
             } else {
                 this.playSeriousDeath();
@@ -471,11 +443,7 @@ const VEGETATION_COLLISION_CELL = 32;
 const audioWildlife = [
     { type: 'wolf', position: new THREE.Vector3(-28, 0, -92), radius: 80, cooldown: 0 },
     { type: 'wolf', position: new THREE.Vector3(34, 0, -174), radius: 105, cooldown: 0 },
-    { type: 'wolf', position: new THREE.Vector3(-52, 0, -228), radius: 92, cooldown: 0 },
-    { type: 'squirrel', position: new THREE.Vector3(-10, 1.2, -42), radius: 38, cooldown: 0 },
-    { type: 'squirrel', position: new THREE.Vector3(20, 1.1, -128), radius: 48, cooldown: 0 },
-    { type: 'squirrel', position: new THREE.Vector3(-36, 1.0, -188), radius: 52, cooldown: 0 },
-    { type: 'squirrel', position: new THREE.Vector3(46, 1.0, -252), radius: 56, cooldown: 0 }
+    { type: 'wolf', position: new THREE.Vector3(-52, 0, -228), radius: 92, cooldown: 0 }
 ];
 
 let scene, camera, renderer, clock;
@@ -502,6 +470,7 @@ let textures = {};
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.matchMedia('(max-width: 700px)').matches;
 let lastAtmosphereUiUpdate = 0;
 let animationFrameIndex = 0;
+let lastWildlifeSoundAt = -Infinity;
 
 function registerVegetationCollider(x, z, radius) {
     const cellX = Math.floor(x / VEGETATION_COLLISION_CELL);
@@ -640,7 +609,7 @@ function createBotanicalAndSurfaceTextures() {
     }
     const groundTex = new THREE.CanvasTexture(groundCanvas);
     groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
-    groundTex.repeat.set(55, 55);
+    groundTex.repeat.set(36, 36);
 
     // 5. Overhead Canopy Bough Cluster Texture
     const canopyCanvas = document.createElement('canvas');
@@ -816,7 +785,7 @@ function createForestProps() {
     });
 
     // Fallen trunks and broken branches force narrow natural passages.
-    for (let i = 0; i < 78; i++) {
+    for (let i = 0; i < (isMobileDevice ? 30 : 50); i++) {
         const angle = i * 2.17;
         const x = Math.sin(angle) * (18 + (i % 17) * 9.2);
         const z = 2 - (i % 102) * 4.8 - Math.cos(angle * 0.7) * 14;
@@ -830,7 +799,7 @@ function createForestProps() {
     }
 
     // Natural lianas/ropes hanging across the canopy.
-    for (let i = 0; i < 64; i++) {
+    for (let i = 0; i < (isMobileDevice ? 18 : 40); i++) {
         const angle = i * 1.91;
         const x = Math.sin(angle) * (16 + (i % 13) * 10.5);
         const z = 4 - (i % 94) * 5.0;
@@ -846,7 +815,7 @@ function createForestProps() {
     }
 
     // Small rain-fed pools, never large enough to read as a flooded floor.
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < (isMobileDevice ? 8 : 16); i++) {
         const angle = i * 2.53;
         const x = Math.sin(angle) * (10 + (i % 12) * 12.5);
         const z = 4 - (i % 82) * 6.1 - Math.cos(angle) * 13;
@@ -871,7 +840,7 @@ function createForestProps() {
     // Fallen leaves react to the player's airflow and foot movement.
     const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x6a4b2e, roughness: 0.94, side: THREE.DoubleSide });
     const leafGeo = new THREE.PlaneGeometry(0.16, 0.08, 1, 1);
-    for (let i = 0; i < (isMobileDevice ? 80 : 180); i++) {
+    for (let i = 0; i < (isMobileDevice ? 20 : 90); i++) {
         const angle = i * 2.41;
         const x = Math.sin(angle) * (7 + (i % 26) * 5.8);
         const z = 5 - (i % 108) * 4.55 - Math.cos(angle * 0.5) * 10;
@@ -1004,8 +973,8 @@ function prepareRealAsset(root, targetHeight) {
                 break;
             }
         }
-        node.castShadow = true;
-        node.receiveShadow = true;
+        node.castShadow = false;
+        node.receiveShadow = false;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((mat) => {
             if (!mat) return;
@@ -1136,7 +1105,7 @@ function initVegetationStreaming(treeTemplates, undergrowthTemplates) {
         undergrowthTemplates,
         smallTemplates: smallTemplates.length ? smallTemplates : undergrowthTemplates
     };
-    const treeSets = buildWorldPlacements(treeTemplates, 20.5, 1, (x, z, index) => ({
+    const treeSets = buildWorldPlacements(treeTemplates, isMobileDevice ? 28 : 20.5, 1, (x, z, index) => ({
         x, z, height: 8.5 + (index % 5) * 1.2, rotation: vegetationHash(index, 1, 31) * Math.PI * 2
     }));
     treeSets.forEach((placements) => placements.forEach((placement) => {
@@ -1144,10 +1113,10 @@ function initVegetationStreaming(treeTemplates, undergrowthTemplates) {
             registerVegetationCollider(placement.x, placement.z, placement.height > 11 ? 2.2 : 1.5);
         }
     }));
-    const mediumSets = buildWorldPlacements(undergrowthTemplates, isMobileDevice ? 28 : 24, 2, (x, z, index) => ({
+    const mediumSets = buildWorldPlacements(undergrowthTemplates, isMobileDevice ? 34 : 28, 2, (x, z, index) => ({
         x, z, height: 1.2 + (index % 4) * 0.24, rotation: vegetationHash(index, 2, 37) * Math.PI * 2
     }));
-    const smallSets = buildWorldPlacements(vegetationStreaming.smallTemplates, isMobileDevice ? 20 : 16, 3, (x, z, index) => ({
+    const smallSets = buildWorldPlacements(vegetationStreaming.smallTemplates, isMobileDevice ? 24 : 20, 3, (x, z, index) => ({
         x, z, height: 0.52 + (index % 5) * 0.11, rotation: vegetationHash(index, 3, 43) * Math.PI * 2
     }));
 
@@ -1548,7 +1517,7 @@ function populateWANDERLVSTRainforest() {
     canopyBoughGeo.rotateX(Math.PI / 2);
 
     // Spawn 420 Multi-Sized Rainforest Trees (Giant Emergent, Mid-Canopy, and Young Saplings)
-    for (let i = 0; i < (isMobileDevice ? 70 : 180); i++) {
+    for (let i = 0; i < (isMobileDevice ? 50 : 180); i++) {
         const x = (Math.random() - 0.5) * 280;
         const z = -Math.random() * 500 + 18;
         // Leave initial spawn clearing open
@@ -1653,7 +1622,7 @@ function populateWANDERLVSTRainforest() {
     }
     monsteraLeafGeo.computeVertexNormals();
 
-    for (let i = 0; i < (isMobileDevice ? 180 : 320); i++) {
+    for (let i = 0; i < (isMobileDevice ? 100 : 180); i++) {
         const gx = (Math.random() - 0.5) * 250;
         const gz = -Math.random() * 500 + 12;
         if (Math.hypot(gx, gz) < 3.5) continue;
@@ -1726,7 +1695,7 @@ function populateWANDERLVSTRainforest() {
         side: THREE.DoubleSide
     });
 
-    for (let r = 0; r < 42; r++) {
+    for (let r = 0; r < (isMobileDevice ? 6 : 12); r++) {
         const ray = new THREE.Mesh(rayGeo, rayMat);
         ray.position.set((Math.random() - 0.5) * 180, 24, -Math.random() * 270);
         ray.rotation.z = -0.28;
@@ -1738,7 +1707,7 @@ function populateWANDERLVSTRainforest() {
 
 function buildSanctuaryParadiseValley() {
     // Winding Crystal River with animated water ripples
-    const riverGeo = new THREE.PlaneGeometry(18, 220, 48, 96);
+    const riverGeo = new THREE.PlaneGeometry(18, 220, 24, 48);
     riverGeo.rotateX(-Math.PI / 2);
 
     riverShaderMat = new THREE.ShaderMaterial({
@@ -1795,7 +1764,7 @@ function buildSanctuaryParadiseValley() {
         scene.add(cliff);
     }
 
-    const fallsGeo = new THREE.PlaneGeometry(18, 48, 24, 48);
+    const fallsGeo = new THREE.PlaneGeometry(18, 48, 12, 24);
     waterfallShaderMat = new THREE.ShaderMaterial({
         uniforms: { uTime: { value: 0 } },
         vertexShader: `
@@ -1845,7 +1814,7 @@ function buildSanctuaryParadiseValley() {
         side: THREE.DoubleSide
     }));
 
-    for (let f = 0; f < (isMobileDevice ? 60 : 120); f++) {
+    for (let f = 0; f < (isMobileDevice ? 24 : 80); f++) {
         const inValley = f < 120;
         const fx = inValley ? ((Math.random() - 0.5) * 95 + 4) : ((Math.random() - 0.5) * 200);
         const fz = inValley ? (-190 - Math.random() * 105) : (-Math.random() * 190);
@@ -2013,7 +1982,7 @@ function initThreeScene() {
 
     renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileDevice ? 1.0 : 1.15));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileDevice ? 0.75 : 1.0));
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.74;
@@ -2049,7 +2018,7 @@ function initThreeScene() {
     scene.add(fillLight);
 
     // Undulating Rainforest Floor with natural root mounds & hollows
-    const groundSegments = isMobileDevice ? 96 : 128;
+    const groundSegments = isMobileDevice ? 48 : 96;
     const groundGeo = new THREE.PlaneGeometry(1100, 1100, groundSegments, groundSegments);
     groundGeo.rotateX(-Math.PI / 2);
     const gPos = groundGeo.attributes.position;
@@ -2076,7 +2045,7 @@ function initThreeScene() {
 
     // 1. Tropical Rainforest Downpour & Puddle Ripple Rings
     const rainGeo = new THREE.BufferGeometry();
-    const rainCount = isMobileDevice ? 700 : 1800;
+    const rainCount = isMobileDevice ? 300 : 800;
     const rainPos = new Float32Array(rainCount * 6);
     for (let i = 0; i < rainCount * 6; i += 6) {
         const rx = (Math.random() - 0.5) * 55;
@@ -2107,7 +2076,7 @@ function initThreeScene() {
 
     // 2. WANDERLVST Shimmering Floating Bioluminescent Pollen / Spores
     const sporeGeo = new THREE.BufferGeometry();
-    const sporeCount = isMobileDevice ? 150 : 400;
+    const sporeCount = isMobileDevice ? 80 : 200;
     const sporePos = new Float32Array(sporeCount * 3);
     for (let i = 0; i < sporeCount * 3; i += 3) {
         sporePos[i] = (Math.random() - 0.5) * 160;
@@ -2267,19 +2236,22 @@ function updateFearAtmosphere(dt, elapsed) {
 
 function triggerWildlifeAudio() {
     if (!audioEngine.initialized || !camera) return;
+    const now = clock ? clock.getElapsedTime() : 0;
+    if (now - lastWildlifeSoundAt < 10) return;
     const candidates = audioWildlife
         .map((event) => ({ event, distance: Math.hypot(camera.position.x - event.position.x, camera.position.z - event.position.z) }))
-        .filter(({ event, distance }) => distance < event.radius && event.cooldown <= 0);
+        .filter(({ event, distance }) => {
+            const audibleRadius = event.type === 'wolf' ? event.radius * 1.8 : event.radius;
+            return distance < audibleRadius && event.cooldown <= 0;
+        });
     if (!candidates.length) return;
     candidates.sort((a, b) => a.distance - b.distance);
-    const chosen = candidates[0];
-    if (chosen.event.type === 'wolf') {
-        audioEngine.playWolfCall(chosen.distance, GAME_STATE.fear);
-        chosen.event.cooldown = 10 + Math.random() * 8;
-    } else {
-        audioEngine.playSquirrelChatter(chosen.distance, GAME_STATE.fear);
-        chosen.event.cooldown = 7 + Math.random() * 6;
-    }
+    const wolves = candidates.filter(({ event }) => event.type === 'wolf');
+    if (!wolves.length) return;
+    const chosen = wolves[0];
+    lastWildlifeSoundAt = now;
+    audioEngine.playWolfCall(chosen.distance, GAME_STATE.fear);
+    chosen.event.cooldown = 18 + Math.random() * 12;
 }
 
 let glimpseTimer = null;
@@ -2454,6 +2426,7 @@ function triggerHazardOutcome(hazard) {
 
     if (hazard.outcomeType === 'PREDATOR_AMBUSH' || hazard.outcomeType === 'TERROR_PACK') {
         showAnimalGlimpse('wolf');
+        lastWildlifeSoundAt = clock ? clock.getElapsedTime() : lastWildlifeSoundAt;
         const predator = prehistoricAnimals.find(a => a.type === 'AMBUSH_PREDATOR');
         if (predator) {
             predator.mesh.visible = true;
@@ -2496,7 +2469,8 @@ function animateLoop() {
         starField.rotation.y = elapsed * 0.0015;
         starField.material.opacity = 0.68 + Math.sin(elapsed * 0.22) * 0.06;
     }
-    if (forestPropsGroup && camera && (animationFrameIndex & 1) === 0) updateForestProps(dt * 2, elapsed);
+    const propsTick = isMobileDevice ? (animationFrameIndex & 3) === 0 : (animationFrameIndex & 1) === 0;
+    if (forestPropsGroup && camera && propsTick) updateForestProps(dt * (isMobileDevice ? 4 : 2), elapsed);
 
     // Update Tropical Rain & Puddle Splash Ripples
     if (rainSystem) {
@@ -2725,8 +2699,8 @@ function animateLoop() {
         // Nocturnal & Distant Prehistoric Calls
         GAME_STATE.ambientTimer -= dt;
         if (GAME_STATE.ambientTimer <= 0) {
-            if (isMoving || GAME_STATE.fear > 0.55) triggerWildlifeAudio();
-            GAME_STATE.ambientTimer = 3.8 + Math.random() * 4.2;
+            triggerWildlifeAudio();
+            GAME_STATE.ambientTimer = 10.0 + Math.random() * 10.0;
         }
 
         // Surprise Mid-Jungle Terror Bird Sprint Encounter
@@ -2809,6 +2783,27 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+let fullscreenToggleAvailable = false;
+function setupFullscreenControl() {
+    const button = document.getElementById('fullscreen-btn');
+    const root = document.documentElement;
+    const enter = root.requestFullscreen ? () => root.requestFullscreen() : root.webkitRequestFullscreen ? () => root.webkitRequestFullscreen() : null;
+    const exit = document.exitFullscreen ? () => document.exitFullscreen() : document.webkitExitFullscreen ? () => document.webkitExitFullscreen() : null;
+    if (!button || !enter || !exit) return false;
+    const updateLabel = () => {
+        const active = document.fullscreenElement || document.webkitFullscreenElement;
+        button.textContent = active ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
+    };
+    button.addEventListener('click', () => {
+        const active = document.fullscreenElement || document.webkitFullscreenElement;
+        const request = (active ? exit : enter)();
+        if (request && request.catch) request.catch(() => {});
+    });
+    document.addEventListener('fullscreenchange', updateLabel);
+    document.addEventListener('webkitfullscreenchange', updateLabel);
+    return true;
+}
+
 window.onload = function () {
     initThreeScene();
     setupInputControls();
@@ -2816,6 +2811,8 @@ window.onload = function () {
 
     const runToggleBtn = document.getElementById('run-toggle-btn');
     const directionPad = document.getElementById('direction-pad');
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+    fullscreenToggleAvailable = setupFullscreenControl();
     directionPad.querySelectorAll('button[data-key]').forEach((button) => {
         const key = button.dataset.key;
         const press = (event) => { event.preventDefault(); keys[key] = true; button.setPointerCapture?.(event.pointerId); };
@@ -2833,6 +2830,7 @@ window.onload = function () {
         document.getElementById('start-modal').classList.add('hidden');
         runToggleBtn.classList.remove('hidden');
         directionPad.classList.remove('hidden');
+        if (fullscreenToggleAvailable) fullscreenBtn.classList.remove('hidden');
     });
 
     document.getElementById('retry-fork-btn').addEventListener('click', () => {
