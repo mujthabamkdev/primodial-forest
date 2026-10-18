@@ -129,6 +129,26 @@
         .asset-loader.hidden { opacity:0; pointer-events:none; }
         .asset-progress { width:min(22rem,70vw); height:4px; margin-top:1rem; background:rgba(167,243,208,.15); overflow:hidden; }
         .asset-progress > i { display:block; width:8%; height:100%; background:#6ee7b7; box-shadow:0 0 18px rgba(110,231,183,.8); transition:width .35s ease; }
+        #animal-glimpse { position:absolute; inset:0; z-index:45; display:flex; align-items:center; justify-content:center; pointer-events:none; background:radial-gradient(circle, transparent 18%, rgba(0,0,0,.34) 72%, rgba(0,0,0,.72)); opacity:1; transition:opacity .25s ease; }
+        #animal-glimpse.hidden { display:none; }
+        #animal-glimpse.fading { opacity:0; }
+        #glimpse-silhouette { width:min(46vw,16rem); height:min(30vw,10rem); opacity:.62; filter:blur(.35px) drop-shadow(0 0 22px rgba(178,205,192,.3)); background:radial-gradient(ellipse at 52% 52%, rgba(13,18,18,.98) 0 42%, transparent 44%), radial-gradient(ellipse at 27% 61%, rgba(8,13,13,.98) 0 19%, transparent 21%), radial-gradient(ellipse at 74% 38%, rgba(8,13,13,.98) 0 10%, transparent 12%); clip-path:polygon(5% 74%, 20% 59%, 34% 57%, 43% 45%, 55% 50%, 68% 46%, 82% 52%, 96% 42%, 91% 64%, 77% 64%, 67% 79%, 47% 78%, 31% 82%, 15% 84%); }
+        #glimpse-silhouette.squirrel { transform:scale(.58); clip-path:polygon(3% 78%, 20% 62%, 37% 62%, 47% 52%, 61% 57%, 76% 42%, 84% 17%, 93% 6%, 91% 35%, 82% 56%, 96% 66%, 80% 79%, 57% 76%, 39% 84%, 17% 86%); }
+        #glimpse-label { position:absolute; bottom:22%; color:rgba(220,235,229,.86); font:700 .64rem/1.2 Inter,sans-serif; letter-spacing:.28em; text-transform:uppercase; text-shadow:0 2px 16px #000; }
+        #start-modal { background:radial-gradient(circle at 50% 32%, rgba(16,35,39,.94), rgba(1,4,8,.98) 72%) !important; }
+        #start-modal h1 { color:#d5e3e6 !important; text-shadow:0 0 26px rgba(126,190,204,.2), 0 5px 26px rgba(0,0,0,.9); }
+        #begin-btn { background:linear-gradient(180deg, rgba(24,48,54,.92), rgba(4,14,18,.98)) !important; border-color:rgba(154,199,210,.62) !important; box-shadow:inset 0 0 20px rgba(125,181,194,.08), 0 14px 34px rgba(0,0,0,.82) !important; }
+        #begin-btn:hover { background:linear-gradient(180deg, rgba(37,70,75,.96), rgba(6,19,23,.98)) !important; }
+        #begin-btn span:first-child { background:#a4d2d9 !important; box-shadow:0 0 12px rgba(164,210,217,.7); }
+        #direction-pad { position:absolute; left:1.25rem; bottom:1.35rem; z-index:20; display:grid; grid-template-columns:repeat(3,3.3rem); grid-template-rows:repeat(2,3.3rem); gap:.32rem; opacity:.9; }
+        #direction-pad.hidden { display:none; }
+        #direction-pad button { border:1px solid rgba(166,205,214,.48); color:#c8e0e4; background:rgba(5,17,22,.84); box-shadow:inset 0 0 16px rgba(116,174,186,.08), 0 8px 18px rgba(0,0,0,.65); font-family:Inter,sans-serif; font-size:1.12rem; font-weight:800; border-radius:.48rem; touch-action:none; }
+        #direction-pad button:active { background:rgba(64,103,111,.78); transform:translateY(1px); }
+        #direction-pad .up { grid-column:2; grid-row:1; }
+        #direction-pad .left { grid-column:1; grid-row:2; }
+        #direction-pad .down { grid-column:2; grid-row:2; }
+        #direction-pad .right { grid-column:3; grid-row:2; }
+        #right-touch-ring { border-color:rgba(210,239,246,.62); background:radial-gradient(circle, rgba(142,204,217,.18), transparent 70%); box-shadow:0 0 24px rgba(142,204,217,.24); }
     </style>
 </head>
 <body>
@@ -143,27 +163,18 @@
 <!-- Minimal Run Toggle Control -->
 <button id="run-toggle-btn" class="hidden">RUN: OFF</button>
 
-<!-- Minimal Console-Style Character Selection Modal -->
+<div id="direction-pad" class="hidden" aria-label="Movement controls">
+    <button class="up" data-key="w" aria-label="Move forward">▲</button>
+    <button class="left" data-key="a" aria-label="Move left">◀</button>
+    <button class="down" data-key="s" aria-label="Move backward">▼</button>
+    <button class="right" data-key="d" aria-label="Move right">▶</button>
+</div>
+
+<!-- Game start modal -->
 <div id="start-modal" class="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 bg-black/80 backdrop-blur-xl transition-opacity duration-700">
     <h1 class="cinematic-font text-3xl md:text-5xl font-extrabold text-emerald-100 tracking-[0.3em] mb-12 drop-shadow-2xl text-center">
         PRIMORDIAL CANOPY
     </h1>
-
-    <div class="flex items-center gap-6 md:gap-10 mb-12">
-        <button id="select-male" class="totem-selector active w-32 h-36 md:w-36 md:h-40 rounded-3xl flex flex-col items-center justify-center gap-3 cursor-pointer">
-            <svg class="w-12 h-12 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-            </svg>
-            <span class="cinematic-font text-xs tracking-[0.25em] text-emerald-100 font-bold uppercase">MALE</span>
-        </button>
-
-        <button id="select-female" class="totem-selector w-32 h-36 md:w-36 md:h-40 rounded-3xl flex flex-col items-center justify-center gap-3 cursor-pointer">
-            <svg class="w-12 h-12 text-emerald-300/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197"/>
-            </svg>
-            <span class="cinematic-font text-xs tracking-[0.25em] text-emerald-100 font-bold uppercase">FEMALE</span>
-        </button>
-    </div>
 
     <div class="control-grid">
         <span>W A S D / arrows · move</span><span>mouse / right touch · look</span>
@@ -172,7 +183,7 @@
 
     <button id="begin-btn" disabled class="group relative px-14 py-4 rounded-full bg-emerald-500/20 disabled:opacity-60 disabled:cursor-wait hover:bg-emerald-500/35 border border-emerald-400/60 transition-all duration-300 flex items-center gap-3 shadow-2xl cursor-pointer">
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 group-hover:scale-125 transition"></span>
-        <span class="cinematic-font text-sm tracking-[0.3em] text-white font-bold uppercase">ENTER</span>
+        <span class="cinematic-font text-sm tracking-[0.3em] text-white font-bold uppercase">START GAME</span>
     </button>
 </div>
 
@@ -196,6 +207,11 @@
     </div>
 </div>
 
+<div id="animal-glimpse" class="hidden">
+    <div id="glimpse-silhouette"></div>
+    <div id="glimpse-label">MOVEMENT IN THE RAIN</div>
+</div>
+
 <script>
 const GAME_STATE = {
     started: false,
@@ -206,6 +222,8 @@ const GAME_STATE = {
     fatigue: 0.0,
     fear: 0.0,
     isTrapped: false,
+    inWater: false,
+    waterDepth: 0,
     touchTarget: null,
     touchPulse: 0,
     assetsReady: false,
@@ -225,11 +243,13 @@ const GAME_STATE = {
 // 6 Terminal Zones along the deep jungle horizon (Z = -195 to -235)
 // Note: X around [-18 to +28] is the open Winning Sanctuary Valley; outer/specific zones house unmarked natural hazards
 const HAZARD_ZONES = [
-    { id: 0, x: -75, z: -155, radius: 14, outcomeType: "TRIBE_CAPTURE", title: "TAKEN BY THE WATCHERS", desc: "A silent poison blowdart strikes from the high canopy shadows" },
+    { id: 0, x: -75, z: -155, radius: 14, outcomeType: "TRIBE_CAPTURE", title: "THE LEFT PATH CLOSES", desc: "Dense roots and unseen movement turn the western path into a dead end" },
     { id: 1, x: -38, z: -175, radius: 14, outcomeType: "PREDATOR_AMBUSH", title: "WOLF HOWL IN THE UNDERGROWTH", desc: "A close howl breaks through the rain and dense forest" },
     { id: 2, x: -12, z: -135, radius: 11, outcomeType: "SPIKE_TRAP", title: "DEADFALL SINKHOLE", desc: "The rain-rotted root bridge collapses into a deep limestone chasm" },
-    { id: 3, x: 42,  z: -165, radius: 14, outcomeType: "TERROR_PACK", title: "PHORUSRHACOS PACK", desc: "Intercepted by a hunting pair of colossal prehistoric terror birds" },
-    { id: 4, x: 76,  z: -150, radius: 14, outcomeType: "QUICKSAND_MIRE", title: "BOTTOMLESS PEAT MIRE", desc: "Pulled beneath the rain-flooded prehistoric bog" }
+    { id: 3, x: 42,  z: -165, radius: 14, outcomeType: "PATH_SNARE", title: "THORN PASS", desc: "The eastern track narrows until the forest seals behind you" },
+    { id: 4, x: 76,  z: -150, radius: 14, outcomeType: "QUICKSAND_MIRE", title: "BOTTOMLESS PEAT MIRE", desc: "A wrong turn sinks into rain-soaked peat" },
+    { id: 5, x: -58, z: -102, radius: 12, outcomeType: "ROOT_CAVERN", title: "ROOT CAVERN", desc: "The northern fork drops beneath a collapsing root shelf" },
+    { id: 6, x: 58, z: -112, radius: 12, outcomeType: "BRAMBLE_LOCK", title: "BRAMBLE LOCK", desc: "A bright opening was only a loop through the thorn wall" }
 ];
 
 class JungleAudioEngine {
@@ -270,6 +290,20 @@ class JungleAudioEngine {
             this.splashFilter = new Tone.Filter(1800, "bandpass").toDestination();
             this.splashSynth.connect(this.splashFilter);
             this.splashSynth.volume.value = -28;
+
+            // Low, restrained death impact; avoid bright arcade-like tones.
+            this.deathRumble = new Tone.MembraneSynth({
+                pitchDecay: 0.08,
+                octaves: 2.2,
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.008, decay: 1.15, sustain: 0.02, release: 1.3 }
+            }).toDestination();
+            this.deathRumble.volume.value = -13;
+            this.deathNoise = new Tone.NoiseSynth({
+                noise: { type: "brown" },
+                envelope: { attack: 0.04, decay: 1.2, sustain: 0, release: 0.5 }
+            }).toDestination();
+            this.deathNoise.volume.value = -24;
 
             // Explorer dynamic breathing (gender-tuned formant filter)
             this.breathSynth = new Tone.NoiseSynth({
@@ -338,6 +372,17 @@ class JungleAudioEngine {
         } catch (e) {}
     }
 
+    playWaterStep(isSprint = false, depth = 0.5) {
+        if (!this.initialized) return;
+        try {
+            this.stepSynth.volume.value = isSprint ? -25 : -29;
+            this.stepSynth.triggerAttackRelease(isSprint ? 0.14 : 0.11);
+            this.splashFilter.frequency.rampTo(900 + depth * 900, 0.08);
+            this.splashSynth.volume.value = isSprint ? -20 : -24;
+            this.splashSynth.triggerAttackRelease(isSprint ? 0.22 : 0.17);
+        } catch (e) {}
+    }
+
     playBreathing(gender = 'male', fatigue = 0.0) {
         if (!this.initialized) return;
         try {
@@ -363,11 +408,11 @@ class JungleAudioEngine {
             if (this.wolfRecording) {
                 this.wolfRecording.pause();
                 this.wolfRecording.currentTime = 0;
-                this.wolfRecording.volume = Math.min(1, 0.05 + near * 0.24 + fear * 0.05);
+                this.wolfRecording.volume = Math.min(1, 0.018 + near * 0.11 + fear * 0.025);
                 this.wolfRecording.play().catch(() => {});
             }
             if (!this.wolfRecording) {
-                this.wolfSynth.volume.value = -23 + near * 12 + fear * 3;
+                this.wolfSynth.volume.value = -29 + near * 8 + fear * 2;
                 this.wolfFilter.frequency.rampTo(420 + near * 520, 0.25);
                 this.wolfSynth.triggerAttackRelease(near > 0.65 ? "E2" : "C2", "1n");
                 setTimeout(() => {
@@ -385,11 +430,11 @@ class JungleAudioEngine {
             if (this.squirrelRecording) {
                 this.squirrelRecording.pause();
                 this.squirrelRecording.currentTime = 0;
-                this.squirrelRecording.volume = Math.min(1, 0.035 + near * 0.16);
+                this.squirrelRecording.volume = Math.min(1, 0.012 + near * 0.07);
                 this.squirrelRecording.play().catch(() => {});
             }
             if (!this.squirrelRecording) {
-                this.squirrelSynth.volume.value = -31 + near * 10 + fear * 2;
+                this.squirrelSynth.volume.value = -37 + near * 7 + fear * 1.5;
                 this.squirrelFilter.frequency.rampTo(1900 + near * 1800, 0.12);
                 const notes = ["A5", "C6", "E6", "B5"];
                 notes.forEach((note, i) => {
@@ -404,25 +449,22 @@ class JungleAudioEngine {
     playAttackAndScream(gender = 'male', outcomeType = 'PREDATOR_AMBUSH') {
         if (!this.initialized) return;
         try {
-            if (outcomeType === 'TRIBE_CAPTURE') {
-                this.splashFilter.frequency.value = 3200;
-                this.splashSynth.volume.value = -2;
-                this.splashSynth.triggerAttackRelease("16n");
-            } else if (outcomeType === 'SPIKE_TRAP' || outcomeType === 'QUICKSAND_MIRE') {
-                this.stepSynth.volume.value = -1;
-                this.stepSynth.triggerAttackRelease("2n");
+            if (outcomeType === 'PREDATOR_AMBUSH' || outcomeType === 'TERROR_PACK') {
+                // Animal attack keeps animal texture front and centre; death impact follows quietly.
+                this.playWolfCall(12, 1.0);
+                setTimeout(() => this.playSeriousDeath(), 420);
             } else {
-                // Use recorded animal texture instead of a synthetic game-like roar.
-                this.playWolfCall(18, 1.0);
+                this.playSeriousDeath();
             }
+        } catch (e) {}
+    }
 
-            // Explorer panicked scream / gasp
-            setTimeout(() => {
-                if (!this.initialized) return;
-                this.vocalSynth.volume.value = -4;
-                const screamNote = gender === 'female' ? "Eb5" : "G3";
-                this.vocalSynth.triggerAttackRelease(screamNote, "2n");
-            }, 140);
+    playSeriousDeath() {
+        if (!this.initialized || !this.deathRumble) return;
+        try {
+            this.deathRumble.triggerAttackRelease("C1", "1n", undefined, 0.72);
+            this.deathRumble.triggerAttackRelease("F0", "2n", "+0.3", 0.38);
+            this.deathNoise.triggerAttackRelease("1.05");
         } catch (e) {}
     }
 }
@@ -430,6 +472,8 @@ class JungleAudioEngine {
 const audioEngine = new JungleAudioEngine();
 
 const interactiveObjects = [];
+const vegetationCollisionGrid = new Map();
+const VEGETATION_COLLISION_CELL = 32;
 const audioWildlife = [
     { type: 'wolf', position: new THREE.Vector3(-28, 0, -92), radius: 80, cooldown: 0 },
     { type: 'wolf', position: new THREE.Vector3(34, 0, -174), radius: 105, cooldown: 0 },
@@ -446,6 +490,7 @@ let sunLight, hemiLight, fillLight, lanternLight;
 let filmGradePass;
 let gltfLoader, realVegetationGroup, realWildlifeGroup;
 let realVegetationReady = false;
+let vegetationStreaming = null;
 const realWildlifeMixers = [];
 const realWildlifeActors = [];
 const realVegetationActors = [];
@@ -462,6 +507,16 @@ let rainSystem, sporeSystem, splashRipples = [], puddleMeshes = [], volumetricRa
 let prehistoricAnimals = [], butterflies = [], dartFrogs = [];
 let riverShaderMat, waterfallShaderMat;
 let textures = {};
+const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.matchMedia('(max-width: 700px)').matches;
+let lastAtmosphereUiUpdate = 0;
+
+function registerVegetationCollider(x, z, radius) {
+    const cellX = Math.floor(x / VEGETATION_COLLISION_CELL);
+    const cellZ = Math.floor(z / VEGETATION_COLLISION_CELL);
+    const key = `${cellX}:${cellZ}`;
+    if (!vegetationCollisionGrid.has(key)) vegetationCollisionGrid.set(key, []);
+    vegetationCollisionGrid.get(key).push({ x, z, radius });
+}
 
 function createBotanicalAndSurfaceTextures() {
     // 1. Monsterra / Split Tropical Leaf Texture (Alpha Cutout)
@@ -698,6 +753,24 @@ function forestDensityGap(x, z) {
     return skyGap || waterGap || pathGap;
 }
 
+function safePathCenterX(z) {
+    return Math.sin(z * 0.018) * 7.5;
+}
+
+function isSafeSanctuaryPath(position) {
+    return Math.abs(position.x - safePathCenterX(position.z)) < 8.5;
+}
+
+function riverCenterX(z) {
+    return 4 + Math.sin((z + 300) * 0.055) * 4.8 + Math.sin((z + 300) * 0.13) * 0.8;
+}
+
+function waterDepthAt(position) {
+    if (position.z > -188 || position.z < -410) return 0;
+    const distance = Math.abs(position.x - riverCenterX(position.z));
+    return THREE.MathUtils.clamp(1 - distance / 10, 0, 1);
+}
+
 function createNightSky() {
     const starPositions = new Float32Array(1800 * 3);
     for (let i = 0; i < 1800; i++) {
@@ -805,7 +878,7 @@ function createForestProps() {
     // Fallen leaves react to the player's airflow and foot movement.
     const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x6a4b2e, roughness: 0.94, side: THREE.DoubleSide });
     const leafGeo = new THREE.PlaneGeometry(0.16, 0.08, 1, 1);
-    for (let i = 0; i < 420; i++) {
+    for (let i = 0; i < (isMobileDevice ? 80 : 180); i++) {
         const angle = i * 2.41;
         const x = Math.sin(angle) * (7 + (i % 26) * 5.8);
         const z = 5 - (i % 108) * 4.55 - Math.cos(angle * 0.5) * 10;
@@ -935,8 +1008,20 @@ function createSpiderWebsBetweenPlants() {
 }
 
 function prepareRealAsset(root, targetHeight) {
+    const invalidMeshes = [];
     root.traverse((node) => {
         if (!node.isMesh) return;
+        const position = node.geometry && node.geometry.attributes && node.geometry.attributes.position;
+        if (!position || !position.array || !Number.isFinite(position.count) || position.count === 0) {
+            invalidMeshes.push(node);
+            return;
+        }
+        for (let i = 0; i < position.array.length; i++) {
+            if (!Number.isFinite(position.array[i])) {
+                invalidMeshes.push(node);
+                break;
+            }
+        }
         node.castShadow = true;
         node.receiveShadow = true;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
@@ -953,8 +1038,14 @@ function prepareRealAsset(root, targetHeight) {
             });
         });
     });
+    invalidMeshes.forEach((node) => node.parent && node.parent.remove(node));
     root.updateMatrixWorld(true);
     const initialBox = new THREE.Box3().setFromObject(root);
+    if (!Number.isFinite(initialBox.min.x) || !Number.isFinite(initialBox.min.y) || !Number.isFinite(initialBox.min.z) ||
+        !Number.isFinite(initialBox.max.x) || !Number.isFinite(initialBox.max.y) || !Number.isFinite(initialBox.max.z)) {
+        root.userData.forestInvalid = true;
+        return root;
+    }
     const height = Math.max(0.001, initialBox.max.y - initialBox.min.y);
     const scale = targetHeight / height;
     root.scale.multiplyScalar(scale);
@@ -965,6 +1056,7 @@ function prepareRealAsset(root, targetHeight) {
 }
 
 function addRealVegetation(template, position, targetHeight, rotationY, type, radius) {
+    if (!template || template.userData.forestInvalid) return null;
     if (!template.userData.forestPrepared) {
         prepareRealAsset(template, 1);
         template.userData.forestPrepared = true;
@@ -984,24 +1076,33 @@ function addRealVegetation(template, position, targetHeight, rotationY, type, ra
     return instance;
 }
 
-function addInstancedVegetationSet(template, placements, name) {
-    if (!placements.length) return;
+function addInstancedVegetationSet(template, placements, name, parent = realVegetationGroup) {
+    if (!template || template.userData.forestInvalid || !placements.length) return;
     if (!template.userData.forestPrepared) {
         prepareRealAsset(template, 1);
         template.userData.forestPrepared = true;
     }
+    if (template.userData.forestInvalid) return;
     template.updateMatrixWorld(true);
-    const meshNodes = [];
-    template.traverse((node) => {
-        if (node.isMesh) meshNodes.push({ geometry: node.geometry, material: node.material, matrix: node.matrixWorld.clone() });
-    });
+    if (!template.userData.forestMeshNodes) {
+        const meshNodes = [];
+        template.traverse((node) => {
+            if (!node.isMesh || !node.geometry || !node.geometry.attributes || !node.geometry.attributes.position || !node.geometry.attributes.position.array ||
+                !node.matrixWorld || !node.matrixWorld.elements || node.matrixWorld.elements.some((value) => !Number.isFinite(value))) return;
+            const position = node.geometry.attributes.position;
+            for (let i = 0; i < position.array.length; i++) if (!Number.isFinite(position.array[i])) return;
+            meshNodes.push({ geometry: node.geometry, material: node.material, matrix: node.matrixWorld.clone() });
+        });
+        template.userData.forestMeshNodes = meshNodes;
+    }
+    const meshNodes = template.userData.forestMeshNodes;
     const group = new THREE.Group();
     group.name = name;
     meshNodes.forEach((node, meshIndex) => {
         const instanced = new THREE.InstancedMesh(node.geometry, node.material, placements.length);
         instanced.name = `${name}_mesh_${meshIndex}`;
         instanced.castShadow = false;
-        instanced.receiveShadow = true;
+        instanced.receiveShadow = !isMobileDevice;
         const plantMatrix = new THREE.Matrix4();
         const finalMatrix = new THREE.Matrix4();
         const quaternion = new THREE.Quaternion();
@@ -1010,81 +1111,67 @@ function addInstancedVegetationSet(template, placements, name) {
             quaternion.setFromEuler(new THREE.Euler(0, placement.rotation, 0));
             scale.set(placement.height, placement.height, placement.height);
             plantMatrix.compose(new THREE.Vector3(placement.x, terrainHeightAt(placement.x, placement.z), placement.z), quaternion, scale);
-            finalMatrix.multiplyMatrices(plantMatrix, node.matrixWorld);
+            finalMatrix.multiplyMatrices(plantMatrix, node.matrix);
             instanced.setMatrixAt(index, finalMatrix);
         });
         instanced.instanceMatrix.needsUpdate = true;
         group.add(instanced);
     });
-    realVegetationGroup.add(group);
+    parent.add(group);
+    return group;
 }
 
-function createTwentyXPlantDensity(treeTemplates, undergrowthTemplates) {
+function vegetationHash(x, z, seed = 1) {
+    const value = Math.sin(x * 127.1 + z * 311.7 + seed * 74.3) * 43758.5453;
+    return value - Math.floor(value);
+}
+
+function buildWorldPlacements(templates, step, seed, makePlacement) {
+    const sets = templates.map(() => []);
+    if (!templates.length) return sets;
+    let cell = 0;
+    for (let z = -520 + step * 0.5; z < 24; z += step) {
+        for (let x = -280 + step * 0.5; x < 280; x += step) {
+            const jitterX = (vegetationHash(cell, seed, 11) - 0.5) * step * 0.65;
+            const jitterZ = (vegetationHash(cell, seed, 17) - 0.5) * step * 0.65;
+            const px = x + jitterX;
+            const pz = z + jitterZ;
+            if (forestDensityGap(px, pz)) { cell++; continue; }
+            const index = Math.floor(vegetationHash(cell, seed, 23) * templates.length) % templates.length;
+            sets[index].push(makePlacement(px, pz, cell));
+            cell++;
+        }
+    }
+    return sets;
+}
+
+function updateVegetationVisibility() {}
+
+function initVegetationStreaming(treeTemplates, undergrowthTemplates) {
     const smallTemplates = undergrowthTemplates.filter((template) => /fern|anthurium/i.test(template.name || ''));
-    const fallbackSmall = smallTemplates.length ? smallTemplates : undergrowthTemplates;
-    const largeSets = treeTemplates.map(() => []);
-    const mediumSets = undergrowthTemplates.map(() => []);
-    const smallSets = fallbackSmall.map(() => []);
-
-    let index = 0;
-    for (let z = 10; z >= -510; z -= 13) {
-        for (let x = -270; x <= 270; x += 13) {
-            const px = x + Math.sin(index * 0.73) * 3.0;
-            const pz = z + Math.cos(index * 0.61) * 3.0;
-            if (forestDensityGap(px, pz)) { index++; continue; }
-            for (let cluster = 0; cluster < 4; cluster++) {
-                const angle = cluster * Math.PI * 0.5 + index * 0.11;
-                const radius = 3.0 + (cluster % 2) * 1.1;
-                largeSets[(index + cluster) % largeSets.length].push({
-                    x: px + Math.cos(angle) * radius,
-                    z: pz + Math.sin(angle) * radius,
-                    height: 4.5 + ((index + cluster) % 6) * 1.4,
-                    rotation: angle + index * 0.07
-                });
-            }
-            index++;
+    vegetationStreaming = {
+        treeTemplates,
+        undergrowthTemplates,
+        smallTemplates: smallTemplates.length ? smallTemplates : undergrowthTemplates
+    };
+    const treeSets = buildWorldPlacements(treeTemplates, 20.5, 1, (x, z, index) => ({
+        x, z, height: 8.5 + (index % 5) * 1.2, rotation: vegetationHash(index, 1, 31) * Math.PI * 2
+    }));
+    treeSets.forEach((placements) => placements.forEach((placement) => {
+        if (Math.hypot(placement.x, placement.z - 8) > 10) {
+            registerVegetationCollider(placement.x, placement.z, placement.height > 11 ? 2.2 : 1.5);
         }
-    }
+    }));
+    const mediumSets = buildWorldPlacements(undergrowthTemplates, isMobileDevice ? 22 : 18, 2, (x, z, index) => ({
+        x, z, height: 1.2 + (index % 4) * 0.24, rotation: vegetationHash(index, 2, 37) * Math.PI * 2
+    }));
+    const smallSets = buildWorldPlacements(vegetationStreaming.smallTemplates, isMobileDevice ? 14 : 10.5, 3, (x, z, index) => ({
+        x, z, height: 0.52 + (index % 5) * 0.11, rotation: vegetationHash(index, 3, 43) * Math.PI * 2
+    }));
 
-    index = 0;
-    for (let z = 9; z >= -510; z -= 9.5) {
-        for (let x = -270; x <= 270; x += 9.5) {
-            const px = x + Math.sin(index * 0.41) * 2.1;
-            const pz = z + Math.cos(index * 0.29) * 2.1;
-            if (forestDensityGap(px, pz)) { index++; continue; }
-            for (let cluster = 0; cluster < 2; cluster++) {
-                mediumSets[(index + cluster) % mediumSets.length].push({
-                    x: px + (cluster ? 2.6 : -2.6),
-                    z: pz + (cluster ? -1.8 : 1.8),
-                    height: 1.6 + ((index + cluster) % 5) * 0.45,
-                    rotation: index * 0.23 + cluster
-                });
-            }
-            index++;
-        }
-    }
-
-    index = 0;
-    for (let z = 8; z >= -510; z -= 5.6) {
-        for (let x = -270; x <= 270; x += 5.6) {
-            const px = x + Math.sin(index * 0.19) * 1.6;
-            const pz = z + Math.cos(index * 0.23) * 1.6;
-            if (forestDensityGap(px, pz)) { index++; continue; }
-            for (let cluster = 0; cluster < 2; cluster++) {
-                smallSets[(index + cluster) % smallSets.length].push({
-                    x: px + (cluster ? 1.2 : -1.2),
-                    z: pz + (cluster ? -0.8 : 0.8),
-                    height: 0.62 + ((index + cluster) % 5) * 0.14,
-                    rotation: index * 0.17 + cluster
-                });
-            }
-            index++;
-        }
-    }
-
-    largeSets.forEach((placements, index) => addInstancedVegetationSet(treeTemplates[index], placements, `Dense_Large_Plants_${index}`));
-    mediumSets.forEach((placements, index) => addInstancedVegetationSet(undergrowthTemplates[index], placements, `Dense_Medium_Plants_${index}`));
-    smallSets.forEach((placements, index) => addInstancedVegetationSet(fallbackSmall[index], placements, `Dense_Small_Plants_${index}`));
+    treeSets.forEach((placements, index) => addInstancedVegetationSet(treeTemplates[index], placements, `World_Trees_${index}`));
+    mediumSets.forEach((placements, index) => addInstancedVegetationSet(undergrowthTemplates[index], placements, `World_Medium_${index}`));
+    smallSets.forEach((placements, index) => addInstancedVegetationSet(vegetationStreaming.smallTemplates[index], placements, `World_Small_${index}`));
 }
 
 function addRealWildlife(gltf, position, scale, type) {
@@ -1169,36 +1256,9 @@ async function loadRealWorldAssets() {
     const treeTemplates = [tree, pachira].filter(Boolean).map((result) => result.scene);
     const undergrowthTemplates = [fern, shrub, anthurium].filter(Boolean).map((result) => result.scene);
     if (treeTemplates.length && undergrowthTemplates.length) {
-        let treeIndex = 0;
-        for (let z = 12; z >= -510; z -= 26) {
-            for (let x = -270; x <= 270; x += 26) {
-                const jitterX = Math.sin((x + 271) * 0.071 + z * 0.019) * 4.2;
-                const jitterZ = Math.cos((z + 511) * 0.063 + x * 0.023) * 4.2;
-                const px = x + jitterX;
-                const pz = z + jitterZ;
-                if (forestDensityGap(px, pz)) continue;
-                const template = treeTemplates[treeIndex % treeTemplates.length];
-                addRealVegetation(template, { x: px, z: pz }, 10 + (treeIndex % 7) * 1.9, treeIndex * 1.71, 'TREE', 2.0 + (treeIndex % 3) * 0.45);
-                treeIndex++;
-            }
-        }
-        let plantIndex = 0;
-        for (let z = 12; z >= -510; z -= 13) {
-            for (let x = -270; x <= 270; x += 13) {
-                const jitterX = Math.sin((x + 271) * 0.11 + z * 0.033) * 2.4;
-                const jitterZ = Math.cos((z + 511) * 0.097 + x * 0.041) * 2.4;
-                const px = x + jitterX;
-                const pz = z + jitterZ;
-                if (forestDensityGap(px, pz)) continue;
-                const template = undergrowthTemplates[plantIndex % undergrowthTemplates.length];
-                const type = plantIndex % 3 === 0 ? 'FERN' : plantIndex % 3 === 1 ? 'SHRUB' : 'ANTHURIUM';
-                const height = type === 'FERN' ? 0.72 + (plantIndex % 5) * 0.2 : type === 'ANTHURIUM' ? 0.42 + (plantIndex % 4) * 0.16 : 1.25 + (plantIndex % 4) * 0.28;
-                addRealVegetation(template, { x: px, z: pz }, height, plantIndex * 1.31, type, type === 'FERN' ? 0.58 : 0.84);
-                plantIndex++;
-            }
-        }
-        createTwentyXPlantDensity(treeTemplates, undergrowthTemplates);
-        createSpiderWebsBetweenPlants();
+        // Keep GLB templates resident and build one bounded instanced world pass.
+        // Positions stay deterministic while GPU memory uses shared geometry plus instance buffers.
+        initVegetationStreaming(treeTemplates, undergrowthTemplates);
         realVegetationReady = true;
         if (proceduralVegetationGroup) proceduralVegetationGroup.visible = false;
     }
@@ -1210,7 +1270,7 @@ async function loadRealWorldAssets() {
     const beginButton = document.getElementById('begin-btn');
     if (beginButton) {
         beginButton.disabled = false;
-        beginButton.querySelector('span:last-child').textContent = 'ENTER FOREST';
+        beginButton.querySelector('span:last-child').textContent = 'START GAME';
     }
 }
 
@@ -1559,7 +1619,7 @@ function populateWANDERLVSTRainforest() {
     // Spawn 140 Understory Dwarf Fan Palms & Tree Ferns (Mid-height 2.5m - 4.5m)
     const palmStemGeo = new THREE.CylinderGeometry(0.12, 0.22, 2.6, 10, 8);
     palmStemGeo.translate(0, 1.3, 0);
-    for (let i = 0; i < 140; i++) {
+    for (let i = 0; i < (isMobileDevice ? 40 : 80); i++) {
         const px = (Math.random() - 0.5) * 240;
         const pz = -Math.random() * 490 + 10;
         if (Math.hypot(px, pz) < 5.0) continue;
@@ -1594,7 +1654,7 @@ function populateWANDERLVSTRainforest() {
     }
     monsteraLeafGeo.computeVertexNormals();
 
-    for (let i = 0; i < 900; i++) {
+    for (let i = 0; i < (isMobileDevice ? 180 : 320); i++) {
         const gx = (Math.random() - 0.5) * 250;
         const gz = -Math.random() * 500 + 12;
         if (Math.hypot(gx, gz) < 3.5) continue;
@@ -1626,7 +1686,7 @@ function populateWANDERLVSTRainforest() {
     }
     vineGeo.computeVertexNormals();
 
-    for (let v = 0; v < 180; v++) {
+    for (let v = 0; v < (isMobileDevice ? 45 : 90); v++) {
         const vine = new THREE.Mesh(vineGeo, barkMat);
         const vineX = (Math.random() - 0.5) * 300;
         const vineZ = -Math.random() * 500;
@@ -1786,7 +1846,7 @@ function buildSanctuaryParadiseValley() {
         side: THREE.DoubleSide
     }));
 
-    for (let f = 0; f < 340; f++) {
+    for (let f = 0; f < (isMobileDevice ? 100 : 220); f++) {
         const inValley = f < 220;
         const fx = inValley ? ((Math.random() - 0.5) * 95 + 4) : ((Math.random() - 0.5) * 200);
         const fz = inValley ? (-190 - Math.random() * 105) : (-Math.random() * 190);
@@ -1952,13 +2012,13 @@ function initThreeScene() {
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 700);
     camera.position.set(0, 1.7, 8);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer = new THREE.WebGLRenderer({ antialias: !isMobileDevice, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileDevice ? 1.0 : 1.5));
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.74;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = !isMobileDevice;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     document.getElementById('canvas-container').appendChild(renderer.domElement);
@@ -1970,9 +2030,9 @@ function initThreeScene() {
 
     sunLight = new THREE.DirectionalLight(0x91afd0, 0.78);
     sunLight.position.set(45, 75, -60);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
+    sunLight.castShadow = !isMobileDevice;
+    sunLight.shadow.mapSize.width = isMobileDevice ? 512 : 1024;
+    sunLight.shadow.mapSize.height = isMobileDevice ? 512 : 1024;
     sunLight.shadow.camera.near = 1;
     sunLight.shadow.camera.far = 260;
     const d = 90;
@@ -1990,7 +2050,8 @@ function initThreeScene() {
     scene.add(fillLight);
 
     // Undulating Rainforest Floor with natural root mounds & hollows
-    const groundGeo = new THREE.PlaneGeometry(1100, 1100, 160, 160);
+    const groundSegments = isMobileDevice ? 96 : 128;
+    const groundGeo = new THREE.PlaneGeometry(1100, 1100, groundSegments, groundSegments);
     groundGeo.rotateX(-Math.PI / 2);
     const gPos = groundGeo.attributes.position;
     for (let i = 0; i < gPos.count; i++) {
@@ -2016,7 +2077,7 @@ function initThreeScene() {
 
     // 1. Tropical Rainforest Downpour & Puddle Ripple Rings
     const rainGeo = new THREE.BufferGeometry();
-    const rainCount = 3600;
+    const rainCount = isMobileDevice ? 700 : 1800;
     const rainPos = new Float32Array(rainCount * 6);
     for (let i = 0; i < rainCount * 6; i += 6) {
         const rx = (Math.random() - 0.5) * 55;
@@ -2047,7 +2108,7 @@ function initThreeScene() {
 
     // 2. WANDERLVST Shimmering Floating Bioluminescent Pollen / Spores
     const sporeGeo = new THREE.BufferGeometry();
-    const sporeCount = 600;
+    const sporeCount = isMobileDevice ? 150 : 400;
     const sporePos = new Float32Array(sporeCount * 3);
     for (let i = 0; i < sporeCount * 3; i += 3) {
         sporePos[i] = (Math.random() - 0.5) * 160;
@@ -2076,11 +2137,11 @@ function initThreeScene() {
     composer.addPass(new THREE.RenderPass(scene, camera));
     const bloomPass = new THREE.UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.08,
-        0.22,
+        isMobileDevice ? 0.035 : 0.08,
+        isMobileDevice ? 0.12 : 0.22,
         0.96
     );
-    composer.addPass(bloomPass);
+    if (!isMobileDevice) composer.addPass(bloomPass);
 
     filmGradePass = new THREE.ShaderPass({
         uniforms: {
@@ -2111,7 +2172,7 @@ function initThreeScene() {
             }
         `
     });
-    composer.addPass(filmGradePass);
+    if (!isMobileDevice) composer.addPass(filmGradePass);
 
     window.addEventListener('resize', onWindowResize);
 }
@@ -2134,6 +2195,10 @@ function updateRunButtonUI() {
 
 function updateInteractiveProximity() {
     if (!camera) return null;
+    if (!interactiveObjects.length) {
+        GAME_STATE.touchTarget = null;
+        return null;
+    }
     const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
     let nearest = null;
     let nearestScore = Infinity;
@@ -2170,6 +2235,27 @@ function resolveWorldCollision(nextPosition) {
         nextPosition.z = entry.position.z + dz * invDistance * minimum;
         blocked = true;
     });
+    const cellX = Math.floor(nextPosition.x / VEGETATION_COLLISION_CELL);
+    const cellZ = Math.floor(nextPosition.z / VEGETATION_COLLISION_CELL);
+    for (let dzCell = -1; dzCell <= 1; dzCell++) {
+        for (let dxCell = -1; dxCell <= 1; dxCell++) {
+            const colliders = vegetationCollisionGrid.get(`${cellX + dxCell}:${cellZ + dzCell}`);
+            if (!colliders) continue;
+            colliders.forEach((collider) => {
+                const dx = nextPosition.x - collider.x;
+                const dz = nextPosition.z - collider.z;
+                const distance = Math.hypot(dx, dz);
+                const minimum = collider.radius + 0.72;
+                if (distance >= minimum) return;
+                const safeDistance = Math.max(distance, 0.001);
+                const nx = distance > 0.001 ? dx / safeDistance : 1;
+                const nz = distance > 0.001 ? dz / safeDistance : 0;
+                nextPosition.x = collider.x + nx * minimum;
+                nextPosition.z = collider.z + nz * minimum;
+                blocked = true;
+            });
+        }
+    }
     GAME_STATE.isTrapped = blocked && !!GAME_STATE.touchTarget;
     return blocked;
 }
@@ -2211,7 +2297,8 @@ function updateFearAtmosphere(dt, elapsed) {
         scene.fog.density = 0.0052 + GAME_STATE.fear * 0.0035 + (GAME_STATE.isTrapped ? 0.0015 : 0);
     }
     const vignette = document.getElementById('vignette');
-    if (vignette && GAME_STATE.started) {
+    if (vignette && GAME_STATE.started && elapsed - lastAtmosphereUiUpdate > 0.05) {
+        lastAtmosphereUiUpdate = elapsed;
         const red = Math.round(12 + GAME_STATE.fear * 115);
         const alpha = (0.46 + GAME_STATE.fear * 0.34).toFixed(2);
         vignette.style.background = `radial-gradient(circle at center, transparent 48%, rgba(${red}, 13, 9, ${alpha}) 86%, rgba(0, 0, 0, 0.94) 100%)`;
@@ -2236,6 +2323,22 @@ function triggerWildlifeAudio() {
         audioEngine.playSquirrelChatter(chosen.distance, GAME_STATE.fear);
         chosen.event.cooldown = 7 + Math.random() * 6;
     }
+}
+
+let glimpseTimer = null;
+function showAnimalGlimpse(type = 'wolf') {
+    const glimpse = document.getElementById('animal-glimpse');
+    const silhouette = document.getElementById('glimpse-silhouette');
+    const label = document.getElementById('glimpse-label');
+    if (!glimpse || !silhouette || !label) return;
+    silhouette.classList.toggle('squirrel', type === 'squirrel');
+    label.textContent = type === 'squirrel' ? 'A SMALL SHAPE IN THE CANOPY' : 'A WOLF CUTS THROUGH THE RAIN';
+    glimpse.classList.remove('hidden', 'fading');
+    if (glimpseTimer) clearTimeout(glimpseTimer);
+    glimpseTimer = setTimeout(() => {
+        glimpse.classList.add('fading');
+        setTimeout(() => glimpse.classList.add('hidden'), 260);
+    }, 1050);
 }
 
 function setupInputControls() {
@@ -2393,6 +2496,7 @@ function triggerHazardOutcome(hazard) {
     document.getElementById('vignette').classList.add('danger-pulse');
 
     if (hazard.outcomeType === 'PREDATOR_AMBUSH' || hazard.outcomeType === 'TERROR_PACK') {
+        showAnimalGlimpse('wolf');
         const predator = prehistoricAnimals.find(a => a.type === 'AMBUSH_PREDATOR');
         if (predator) {
             predator.mesh.visible = true;
@@ -2565,13 +2669,17 @@ function animateLoop() {
 
         const isMoving = Math.abs(moveForward) > 0.05 || Math.abs(moveTurn) > 0.08;
         updateInteractiveProximity();
+        const previousWaterState = GAME_STATE.inWater;
+        GAME_STATE.waterDepth = waterDepthAt(camera.position);
+        GAME_STATE.inWater = GAME_STATE.waterDepth > 0.08;
+        if (GAME_STATE.inWater && !previousWaterState && audioEngine.initialized) audioEngine.playWaterStep(false, GAME_STATE.waterDepth);
 
         // Fatigue & Stamina calculation
         const fatigueDelta = isMoving ? (GAME_STATE.sprint ? 0.11 : 0.025) : -0.16;
         GAME_STATE.fatigue = Math.min(1.0, Math.max(0.0, GAME_STATE.fatigue + fatigueDelta * dt));
 
         // Distinct grounded walk/run speeds with acceleration instead of a gamey instant jump.
-        const targetSpeed = GAME_STATE.sprint ? 25.5 : 8.8;
+        const targetSpeed = (GAME_STATE.sprint ? 25.5 : 8.8) * 0.9 * (1.0 - GAME_STATE.waterDepth * 0.58);
         const speedScale = 1.0 - GAME_STATE.fatigue * 0.15 - GAME_STATE.fear * 0.08;
         GAME_STATE.moveVelocity = THREE.MathUtils.lerp(GAME_STATE.moveVelocity, isMoving ? targetSpeed * speedScale : 0, dt * (GAME_STATE.sprint ? 8 : 6));
         const moveSpeed = GAME_STATE.moveVelocity;
@@ -2589,21 +2697,22 @@ function animateLoop() {
             camera.position.x = Math.max(-280, Math.min(280, camera.position.x));
             camera.position.z = Math.max(-520, Math.min(22, camera.position.z));
 
-            const bobFreq = GAME_STATE.sprint ? 15.0 : 9.5;
+            const bobFreq = (GAME_STATE.sprint ? 15.0 : 9.5) * (1.0 - GAME_STATE.waterDepth * 0.34);
             GAME_STATE.bobTimer += dt * bobFreq;
-            camera.position.y = terrainHeightAt(camera.position.x, camera.position.z) + 1.7 + Math.sin(GAME_STATE.bobTimer) * (GAME_STATE.sprint ? 0.09 : 0.045);
+            camera.position.y = terrainHeightAt(camera.position.x, camera.position.z) + 1.7 - GAME_STATE.waterDepth * 0.12 + Math.sin(GAME_STATE.bobTimer) * (GAME_STATE.sprint ? 0.09 : 0.045) * (1.0 - GAME_STATE.waterDepth * 0.42);
 
             // Natural First-Person Arm Swing & Finger Flexing Kinematics
             if (leftHandGroup && rightHandGroup) {
                 const swing = Math.sin(GAME_STATE.bobTimer * 0.5);
                 const pump = Math.abs(Math.cos(GAME_STATE.bobTimer * 0.5));
                 const reach = GAME_STATE.touchTarget ? GAME_STATE.touchPulse * 0.12 : 0;
-                leftHandGroup.position.z = -0.48 + swing * (GAME_STATE.sprint ? 0.13 : 0.065) - reach;
-                leftHandGroup.position.y = -0.23 + pump * (GAME_STATE.sprint ? 0.075 : 0.03) + reach * 0.45;
-                rightHandGroup.position.z = -0.48 - swing * (GAME_STATE.sprint ? 0.13 : 0.065) - reach * 0.4;
-                rightHandGroup.position.y = -0.23 + pump * (GAME_STATE.sprint ? 0.075 : 0.03) + reach * 0.2;
-                leftHandGroup.rotation.x = 0.22 + Math.sin(GAME_STATE.bobTimer) * (GAME_STATE.sprint ? 0.1 : 0.045) - reach * 0.45;
-                rightHandGroup.rotation.x = 0.22 - Math.sin(GAME_STATE.bobTimer) * (GAME_STATE.sprint ? 0.1 : 0.045) - reach * 0.2;
+                const waterMotion = 1.0 - GAME_STATE.waterDepth * 0.58;
+                leftHandGroup.position.z = -0.48 + swing * (GAME_STATE.sprint ? 0.13 : 0.065) * waterMotion - reach;
+                leftHandGroup.position.y = -0.23 + pump * (GAME_STATE.sprint ? 0.075 : 0.03) * waterMotion + reach * 0.45;
+                rightHandGroup.position.z = -0.48 - swing * (GAME_STATE.sprint ? 0.13 : 0.065) * waterMotion - reach * 0.4;
+                rightHandGroup.position.y = -0.23 + pump * (GAME_STATE.sprint ? 0.075 : 0.03) * waterMotion + reach * 0.2;
+                leftHandGroup.rotation.x = 0.22 + Math.sin(GAME_STATE.bobTimer) * (GAME_STATE.sprint ? 0.1 : 0.045) * waterMotion - reach * 0.45;
+                rightHandGroup.rotation.x = 0.22 - Math.sin(GAME_STATE.bobTimer) * (GAME_STATE.sprint ? 0.1 : 0.045) * waterMotion - reach * 0.2;
                 leftHandGroup.rotation.z = -0.08 + swing * 0.06;
                 rightHandGroup.rotation.z = 0.08 + swing * 0.06;
             }
@@ -2613,12 +2722,15 @@ function animateLoop() {
             if (GAME_STATE.stepAccum >= 1) {
                 GAME_STATE.stepAccum -= 1;
                 if (!GAME_STATE.isTrapped) {
-                    audioEngine.playFootstep(GAME_STATE.sprint);
+                    if (GAME_STATE.inWater) audioEngine.playWaterStep(GAME_STATE.sprint, GAME_STATE.waterDepth);
+                    else audioEngine.playFootstep(GAME_STATE.sprint);
                     spawnFootstepRipple(camera.position.x, camera.position.z);
                 }
             }
         } else {
-            camera.position.y = THREE.MathUtils.lerp(camera.position.y, terrainHeightAt(camera.position.x, camera.position.z) + 1.7 + Math.sin(elapsed * 2.2) * 0.015, dt * 5);
+            GAME_STATE.waterDepth = waterDepthAt(camera.position);
+            GAME_STATE.inWater = GAME_STATE.waterDepth > 0.08;
+            camera.position.y = THREE.MathUtils.lerp(camera.position.y, terrainHeightAt(camera.position.x, camera.position.z) + 1.7 - GAME_STATE.waterDepth * 0.12 + Math.sin(elapsed * 2.2) * 0.015, dt * 5);
             if (leftHandGroup && rightHandGroup) {
                 const reach = GAME_STATE.touchTarget ? GAME_STATE.touchPulse * 0.12 : 0;
                 leftHandGroup.position.y = THREE.MathUtils.lerp(leftHandGroup.position.y, -0.23 + Math.sin(elapsed * 2.2) * 0.008 + reach * 0.4, dt * 4);
@@ -2685,8 +2797,17 @@ function animateLoop() {
                 }
             }
 
+            // Only one winding path reaches river, flowers, stars, and moonlit sanctuary.
+            if (GAME_STATE.phase === 'WALKING' && camera.position.z < -188 && !isSafeSanctuaryPath(camera.position)) {
+                triggerHazardOutcome({
+                    outcomeType: 'LOST_PATH',
+                    title: 'THE FOREST HAS NO EXIT',
+                    desc: 'Every wrong direction closes into wet roots and shadow'
+                });
+            }
+
             // Seamless entry into the Winning Sanctuary of Golden Falls (No Pop-up UI!)
-            if (camera.position.z < -188) {
+            if (GAME_STATE.phase === 'WALKING' && camera.position.z < -188 && isSafeSanctuaryPath(camera.position)) {
                 GAME_STATE.phase = 'SANCTUARY_FREEROAM';
                 GAME_STATE.rainIntensity = 0.62;
                 audioEngine.setRainVolume(0.38);
@@ -2735,22 +2856,16 @@ window.onload = function () {
     setupInputControls();
     animateLoop();
 
-    const selectMaleBtn = document.getElementById('select-male');
-    const selectFemaleBtn = document.getElementById('select-female');
     const runToggleBtn = document.getElementById('run-toggle-btn');
-
-    selectMaleBtn.addEventListener('click', () => {
-        GAME_STATE.gender = 'male';
-        selectMaleBtn.classList.add('active');
-        selectFemaleBtn.classList.remove('active');
-        buildFirstPersonHands();
-    });
-
-    selectFemaleBtn.addEventListener('click', () => {
-        GAME_STATE.gender = 'female';
-        selectFemaleBtn.classList.add('active');
-        selectMaleBtn.classList.remove('active');
-        buildFirstPersonHands();
+    const directionPad = document.getElementById('direction-pad');
+    directionPad.querySelectorAll('button[data-key]').forEach((button) => {
+        const key = button.dataset.key;
+        const press = (event) => { event.preventDefault(); keys[key] = true; button.setPointerCapture?.(event.pointerId); };
+        const release = (event) => { event.preventDefault(); keys[key] = false; };
+        button.addEventListener('pointerdown', press);
+        button.addEventListener('pointerup', release);
+        button.addEventListener('pointercancel', release);
+        button.addEventListener('pointerleave', release);
     });
 
     document.getElementById('begin-btn').addEventListener('click', async () => {
@@ -2759,6 +2874,7 @@ window.onload = function () {
         GAME_STATE.started = true;
         document.getElementById('start-modal').classList.add('hidden');
         runToggleBtn.classList.remove('hidden');
+        directionPad.classList.remove('hidden');
     });
 
     document.getElementById('retry-fork-btn').addEventListener('click', () => {
