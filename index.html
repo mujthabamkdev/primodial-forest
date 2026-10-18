@@ -691,6 +691,13 @@ function terrainHeightAt(x, z) {
     return Math.sin(x * 0.08) * Math.cos(z * 0.08) * 0.35 + Math.sin(x * 0.25 + z * 0.2) * 0.12;
 }
 
+function forestDensityGap(x, z) {
+    const skyGap = Math.hypot(x - 96, z + 292) < 34;
+    const waterGap = z < -188 && z > -412 && x > -8 && x < 16;
+    const pathGap = Math.abs(x - Math.sin(z * 0.018) * 7.5) < 5.2;
+    return skyGap || waterGap || pathGap;
+}
+
 function createNightSky() {
     const starPositions = new Float32Array(1800 * 3);
     for (let i = 0; i < 1800; i++) {
@@ -977,6 +984,109 @@ function addRealVegetation(template, position, targetHeight, rotationY, type, ra
     return instance;
 }
 
+function addInstancedVegetationSet(template, placements, name) {
+    if (!placements.length) return;
+    if (!template.userData.forestPrepared) {
+        prepareRealAsset(template, 1);
+        template.userData.forestPrepared = true;
+    }
+    template.updateMatrixWorld(true);
+    const meshNodes = [];
+    template.traverse((node) => {
+        if (node.isMesh) meshNodes.push({ geometry: node.geometry, material: node.material, matrix: node.matrixWorld.clone() });
+    });
+    const group = new THREE.Group();
+    group.name = name;
+    meshNodes.forEach((node, meshIndex) => {
+        const instanced = new THREE.InstancedMesh(node.geometry, node.material, placements.length);
+        instanced.name = `${name}_mesh_${meshIndex}`;
+        instanced.castShadow = false;
+        instanced.receiveShadow = true;
+        const plantMatrix = new THREE.Matrix4();
+        const finalMatrix = new THREE.Matrix4();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        placements.forEach((placement, index) => {
+            quaternion.setFromEuler(new THREE.Euler(0, placement.rotation, 0));
+            scale.set(placement.height, placement.height, placement.height);
+            plantMatrix.compose(new THREE.Vector3(placement.x, terrainHeightAt(placement.x, placement.z), placement.z), quaternion, scale);
+            finalMatrix.multiplyMatrices(plantMatrix, node.matrixWorld);
+            instanced.setMatrixAt(index, finalMatrix);
+        });
+        instanced.instanceMatrix.needsUpdate = true;
+        group.add(instanced);
+    });
+    realVegetationGroup.add(group);
+}
+
+function createTwentyXPlantDensity(treeTemplates, undergrowthTemplates) {
+    const smallTemplates = undergrowthTemplates.filter((template) => /fern|anthurium/i.test(template.name || ''));
+    const fallbackSmall = smallTemplates.length ? smallTemplates : undergrowthTemplates;
+    const largeSets = treeTemplates.map(() => []);
+    const mediumSets = undergrowthTemplates.map(() => []);
+    const smallSets = fallbackSmall.map(() => []);
+
+    let index = 0;
+    for (let z = 10; z >= -510; z -= 13) {
+        for (let x = -270; x <= 270; x += 13) {
+            const px = x + Math.sin(index * 0.73) * 3.0;
+            const pz = z + Math.cos(index * 0.61) * 3.0;
+            if (forestDensityGap(px, pz)) { index++; continue; }
+            for (let cluster = 0; cluster < 4; cluster++) {
+                const angle = cluster * Math.PI * 0.5 + index * 0.11;
+                const radius = 3.0 + (cluster % 2) * 1.1;
+                largeSets[(index + cluster) % largeSets.length].push({
+                    x: px + Math.cos(angle) * radius,
+                    z: pz + Math.sin(angle) * radius,
+                    height: 4.5 + ((index + cluster) % 6) * 1.4,
+                    rotation: angle + index * 0.07
+                });
+            }
+            index++;
+        }
+    }
+
+    index = 0;
+    for (let z = 9; z >= -510; z -= 9.5) {
+        for (let x = -270; x <= 270; x += 9.5) {
+            const px = x + Math.sin(index * 0.41) * 2.1;
+            const pz = z + Math.cos(index * 0.29) * 2.1;
+            if (forestDensityGap(px, pz)) { index++; continue; }
+            for (let cluster = 0; cluster < 2; cluster++) {
+                mediumSets[(index + cluster) % mediumSets.length].push({
+                    x: px + (cluster ? 2.6 : -2.6),
+                    z: pz + (cluster ? -1.8 : 1.8),
+                    height: 1.6 + ((index + cluster) % 5) * 0.45,
+                    rotation: index * 0.23 + cluster
+                });
+            }
+            index++;
+        }
+    }
+
+    index = 0;
+    for (let z = 8; z >= -510; z -= 5.6) {
+        for (let x = -270; x <= 270; x += 5.6) {
+            const px = x + Math.sin(index * 0.19) * 1.6;
+            const pz = z + Math.cos(index * 0.23) * 1.6;
+            if (forestDensityGap(px, pz)) { index++; continue; }
+            for (let cluster = 0; cluster < 2; cluster++) {
+                smallSets[(index + cluster) % smallSets.length].push({
+                    x: px + (cluster ? 1.2 : -1.2),
+                    z: pz + (cluster ? -0.8 : 0.8),
+                    height: 0.62 + ((index + cluster) % 5) * 0.14,
+                    rotation: index * 0.17 + cluster
+                });
+            }
+            index++;
+        }
+    }
+
+    largeSets.forEach((placements, index) => addInstancedVegetationSet(treeTemplates[index], placements, `Dense_Large_Plants_${index}`));
+    mediumSets.forEach((placements, index) => addInstancedVegetationSet(undergrowthTemplates[index], placements, `Dense_Medium_Plants_${index}`));
+    smallSets.forEach((placements, index) => addInstancedVegetationSet(fallbackSmall[index], placements, `Dense_Small_Plants_${index}`));
+}
+
 function addRealWildlife(gltf, position, scale, type) {
     const instance = THREE.SkeletonUtils ? THREE.SkeletonUtils.clone(gltf.scene) : gltf.scene.clone(true);
     instance.updateMatrixWorld(true);
@@ -1059,9 +1169,6 @@ async function loadRealWorldAssets() {
     const treeTemplates = [tree, pachira].filter(Boolean).map((result) => result.scene);
     const undergrowthTemplates = [fern, shrub, anthurium].filter(Boolean).map((result) => result.scene);
     if (treeTemplates.length && undergrowthTemplates.length) {
-        const skyGap = (x, z) => Math.hypot(x - 96, z + 292) < 34;
-        const waterGap = (x, z) => z < -188 && z > -412 && x > -8 && x < 16;
-        const pathGap = (x, z) => Math.abs(x - Math.sin(z * 0.018) * 7.5) < 5.2;
         let treeIndex = 0;
         for (let z = 12; z >= -510; z -= 26) {
             for (let x = -270; x <= 270; x += 26) {
@@ -1069,7 +1176,7 @@ async function loadRealWorldAssets() {
                 const jitterZ = Math.cos((z + 511) * 0.063 + x * 0.023) * 4.2;
                 const px = x + jitterX;
                 const pz = z + jitterZ;
-                if (skyGap(px, pz) || waterGap(px, pz) || pathGap(px, pz)) continue;
+                if (forestDensityGap(px, pz)) continue;
                 const template = treeTemplates[treeIndex % treeTemplates.length];
                 addRealVegetation(template, { x: px, z: pz }, 10 + (treeIndex % 7) * 1.9, treeIndex * 1.71, 'TREE', 2.0 + (treeIndex % 3) * 0.45);
                 treeIndex++;
@@ -1082,7 +1189,7 @@ async function loadRealWorldAssets() {
                 const jitterZ = Math.cos((z + 511) * 0.097 + x * 0.041) * 2.4;
                 const px = x + jitterX;
                 const pz = z + jitterZ;
-                if (skyGap(px, pz) || waterGap(px, pz) || pathGap(px, pz)) continue;
+                if (forestDensityGap(px, pz)) continue;
                 const template = undergrowthTemplates[plantIndex % undergrowthTemplates.length];
                 const type = plantIndex % 3 === 0 ? 'FERN' : plantIndex % 3 === 1 ? 'SHRUB' : 'ANTHURIUM';
                 const height = type === 'FERN' ? 0.72 + (plantIndex % 5) * 0.2 : type === 'ANTHURIUM' ? 0.42 + (plantIndex % 4) * 0.16 : 1.25 + (plantIndex % 4) * 0.28;
@@ -1090,6 +1197,7 @@ async function loadRealWorldAssets() {
                 plantIndex++;
             }
         }
+        createTwentyXPlantDensity(treeTemplates, undergrowthTemplates);
         createSpiderWebsBetweenPlants();
         realVegetationReady = true;
         if (proceduralVegetationGroup) proceduralVegetationGroup.visible = false;
