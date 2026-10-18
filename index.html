@@ -470,6 +470,7 @@ let textures = {};
 const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.matchMedia('(max-width: 700px)').matches;
 let lastAtmosphereUiUpdate = 0;
 let animationFrameIndex = 0;
+let lastRenderAt = 0;
 let lastWildlifeSoundAt = -Infinity;
 
 function registerVegetationCollider(x, z, radius) {
@@ -981,9 +982,14 @@ function prepareRealAsset(root, targetHeight) {
             if ('roughness' in mat) mat.roughness = Math.max(mat.roughness || 0.7, 0.74);
             if ('metalness' in mat) mat.metalness = 0.0;
             if (mat.alphaMode === 'MASK') mat.alphaTest = Math.max(mat.alphaTest || 0.35, 0.35);
+            if (isMobileDevice) {
+                mat.normalMap = null;
+                mat.roughnessMap = null;
+                mat.metalnessMap = null;
+            }
             [mat.map, mat.normalMap, mat.roughnessMap, mat.metalnessMap].forEach((texture) => {
                 if (!texture) return;
-                texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                texture.anisotropy = isMobileDevice ? 1 : 2;
                 texture.minFilter = THREE.LinearMipmapLinearFilter;
                 texture.magFilter = THREE.LinearFilter;
             });
@@ -1105,7 +1111,7 @@ function initVegetationStreaming(treeTemplates, undergrowthTemplates) {
         undergrowthTemplates,
         smallTemplates: smallTemplates.length ? smallTemplates : undergrowthTemplates
     };
-    const treeSets = buildWorldPlacements(treeTemplates, isMobileDevice ? 28 : 20.5, 1, (x, z, index) => ({
+    const treeSets = buildWorldPlacements(treeTemplates, isMobileDevice ? 34 : 28, 1, (x, z, index) => ({
         x, z, height: 8.5 + (index % 5) * 1.2, rotation: vegetationHash(index, 1, 31) * Math.PI * 2
     }));
     treeSets.forEach((placements) => placements.forEach((placement) => {
@@ -1113,10 +1119,10 @@ function initVegetationStreaming(treeTemplates, undergrowthTemplates) {
             registerVegetationCollider(placement.x, placement.z, placement.height > 11 ? 2.2 : 1.5);
         }
     }));
-    const mediumSets = buildWorldPlacements(undergrowthTemplates, isMobileDevice ? 34 : 28, 2, (x, z, index) => ({
+    const mediumSets = buildWorldPlacements(undergrowthTemplates, isMobileDevice ? 46 : 40, 2, (x, z, index) => ({
         x, z, height: 1.2 + (index % 4) * 0.24, rotation: vegetationHash(index, 2, 37) * Math.PI * 2
     }));
-    const smallSets = buildWorldPlacements(vegetationStreaming.smallTemplates, isMobileDevice ? 24 : 20, 3, (x, z, index) => ({
+    const smallSets = buildWorldPlacements(vegetationStreaming.smallTemplates, isMobileDevice ? 32 : 28, 3, (x, z, index) => ({
         x, z, height: 0.52 + (index % 5) * 0.11, rotation: vegetationHash(index, 3, 43) * Math.PI * 2
     }));
 
@@ -1174,7 +1180,7 @@ async function loadRealWorldAssets() {
     [forestDiff, forestNormal, forestRough].forEach((texture) => {
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
         texture.repeat.set(55, 55);
-        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        texture.anisotropy = isMobileDevice ? 1 : 2;
     });
     forestDiff.encoding = THREE.sRGBEncoding;
     if (groundMaterial) {
@@ -2450,6 +2456,10 @@ function showFinalEndingModal() {
 
 function animateLoop() {
     requestAnimationFrame(animateLoop);
+    const frameNow = performance.now();
+    const minimumFrameTime = isMobileDevice ? 33.3 : 20.0;
+    if (frameNow - lastRenderAt < minimumFrameTime) return;
+    lastRenderAt = frameNow;
     const dt = Math.min(clock.getDelta(), 0.1);
     const elapsed = clock.getElapsedTime();
     animationFrameIndex++;
